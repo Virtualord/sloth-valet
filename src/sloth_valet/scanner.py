@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import math
 import os
 import stat
 import time
@@ -18,6 +19,7 @@ from sloth_valet.models import (
     SkipReason,
 )
 
+DEFAULT_STABILITY_DELAY_S = 2.0
 PARTIAL_SUFFIXES = (".part", ".crdownload", ".tmp")
 
 
@@ -27,29 +29,49 @@ def is_partial_download(path: Path) -> bool:
 
 
 class Scanner:
-    """Find trustworthy files without opening them or contacting a model."""
+    """Find trustworthy files without opening them or contacting a model.
 
-    def __init__(self, config: ValetConfig, *, clock: Callable[[], float] = time.time) -> None:
+    Safety gates run in this order: protected paths, ignore globs (including
+    partial-download suffixes), symlinks, settle time, file-size cap, and finally a
+    stability check. The stability check reads size, mtime, device, and inode, waits
+    once for the configured delay, then reads them again for every provisional
+    candidate.
+    """
+
+    def __init__(
+        self,
+        config: ValetConfig,
+        *,
+        clock: Callable[[], float] = time.time,
+        stability_delay_s: float = DEFAULT_STABILITY_DELAY_S,
+        sleep_func: Callable[[float], None] | None = None,
+    ) -> None:
+        if not math.isfinite(stability_delay_s) or stability_delay_s < 0:
+            raise ValueError("stability_delay_s must be a finite, non-negative number")
         self._config = config
         self._clock = clock
+        self._stability_delay_s = stability_delay_s
+        self._sleep = sleep_func or time.sleep
+        self._max_file_size_mb = config.general.max_file_size_mb
+        self._max_file_size_bytes = self._max_file_size_mb * 1024 * 1024
         self._protected_paths = tuple(
             _resolve_for_comparison(path) for path in config.protect.paths
         )
-        self._destination_roots = tuple(
-            _resolve_for_comparison(watch.destination_root) for watch in config.watch
-        )
 
     def scan(self) -> ScanResult:
-        candidates: list[FileCandidate] = []
+        provisional: list[FileCandidate] = []
         skipped: list[SkippedPath] = []
         errors: list[ScanError] = []
         seen_sources: set[Path] = set()
 
         for watch in self._config.watch:
             watch_candidates, watch_skipped, watch_errors = self._scan_watch(watch, seen_sources)
-            candidates.extend(watch_candidates)
+            provisional.extend(watch_candidates)
             skipped.extend(watch_skipped)
             errors.extend(watch_errors)
+
+        candidates, stability_skips = self._verify_stability(provisional)
+        skipped.extend(stability_skips)
 
         return ScanResult(
             candidates=tuple(sorted(candidates, key=lambda candidate: candidate.source)),
@@ -70,12 +92,11 @@ class Scanner:
             if watch.path.is_symlink():
                 raise OSError("watch root is a symlink")
             watch_root = watch.path.resolve(strict=True)
+            if not watch_root.is_dir():
+                errors.append(ScanError(watch.path, "watch root is not a directory"))
+                return candidates, skipped, errors
         except (OSError, RuntimeError) as exc:
             errors.append(ScanError(watch.path, f"cannot use watch root: {exc}"))
-            return candidates, skipped, errors
-
-        if not watch_root.is_dir():
-            errors.append(ScanError(watch.path, "watch root is not a directory"))
             return candidates, skipped, errors
 
         directories = [watch_root]
@@ -83,7 +104,7 @@ class Scanner:
             directory = directories.pop(0)
             try:
                 directory_fd = _open_directory_without_symlinks(directory, watch_root)
-            except OSError as exc:
+            except (OSError, RuntimeError) as exc:
                 errors.append(ScanError(directory, f"cannot read directory: {exc}"))
                 continue
 
@@ -93,45 +114,62 @@ class Scanner:
                     for entry in entries:
                         path = directory / entry.name
                         try:
+                            is_directory = entry.is_dir(follow_symlinks=False)
+                            pre_skip = self._pre_metadata_skip(
+                                path,
+                                watch_root,
+                                is_directory=is_directory,
+                            )
+                            if pre_skip is not None:
+                                skipped.append(pre_skip)
+                                continue
                             if entry.is_symlink():
                                 skipped.append(SkippedPath(path, SkipReason.SYMLINK))
                                 continue
-                            if entry.is_dir(follow_symlinks=False):
-                                if self._directory_should_be_pruned(path, watch_root):
-                                    continue
+                            if is_directory:
                                 if watch.recursive:
                                     directories.append(path)
                                 continue
-                            if not entry.is_file(follow_symlinks=False):
-                                skipped.append(SkippedPath(path, SkipReason.NOT_REGULAR))
-                                continue
-                            candidate, skip = self._inspect_file(
+
+                            first_stat = entry.stat(follow_symlinks=False)
+                            candidate, file_skip = self._inspect_file(
                                 path,
-                                entry.stat(follow_symlinks=False),
+                                first_stat,
                                 watch_root,
                                 watch,
                                 seen_sources,
                             )
                             if candidate is not None:
                                 candidates.append(candidate)
-                            if skip is not None:
-                                skipped.append(skip)
+                            if file_skip is not None:
+                                skipped.append(file_skip)
                         except OSError as exc:
                             skipped.append(
                                 SkippedPath(path, SkipReason.UNREADABLE, str(exc))
                             )
+            except OSError as exc:
+                errors.append(ScanError(directory, f"cannot read directory: {exc}"))
             finally:
                 os.close(directory_fd)
 
         return candidates, skipped, errors
 
-    def _directory_should_be_pruned(self, path: Path, watch_root: Path) -> bool:
+    def _pre_metadata_skip(
+        self,
+        path: Path,
+        watch_root: Path,
+        *,
+        is_directory: bool,
+    ) -> SkippedPath | None:
+        """Apply pre-stat safety gates before metadata inspection."""
+        if self._is_protected(path):
+            return SkippedPath(path, SkipReason.PROTECTED)
+        if not is_directory and is_partial_download(path):
+            return SkippedPath(path, SkipReason.PARTIAL_DOWNLOAD)
         relative = path.relative_to(watch_root)
-        return (
-            self._is_protected(path)
-            or self._is_inside_destination(path)
-            or self._is_ignored(path, watch_root, relative)
-        )
+        if self._is_ignored(path, watch_root, relative):
+            return SkippedPath(path, SkipReason.IGNORED)
+        return None
 
     def _inspect_file(
         self,
@@ -141,66 +179,123 @@ class Scanner:
         watch: WatchConfig,
         seen_sources: set[Path],
     ) -> tuple[FileCandidate | None, SkippedPath | None]:
-        relative = path.relative_to(watch_root)
-        if is_partial_download(path):
-            return None, SkippedPath(path, SkipReason.PARTIAL_DOWNLOAD)
-        if self._is_ignored(path, watch_root, relative):
-            return None, SkippedPath(path, SkipReason.IGNORED)
-        if self._is_protected(path):
-            return None, SkippedPath(path, SkipReason.PROTECTED)
-        if self._is_inside_destination(path):
-            return None, SkippedPath(path, SkipReason.INSIDE_DESTINATION)
+        if stat.S_ISLNK(first_stat.st_mode):
+            return None, SkippedPath(path, SkipReason.SYMLINK)
+        if not stat.S_ISREG(first_stat.st_mode):
+            return None, SkippedPath(path, SkipReason.NOT_REGULAR)
+
+        try:
+            resolved = path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            return None, SkippedPath(path, SkipReason.UNREADABLE, str(exc))
+        if resolved != path:
+            return None, SkippedPath(path, SkipReason.SYMLINK)
+        if not resolved.is_relative_to(watch_root):
+            return None, SkippedPath(path, SkipReason.OUTSIDE_WATCH)
 
         settle_seconds = self._config.general.settle_minutes * 60
         if self._clock() - first_stat.st_mtime_ns / 1_000_000_000 < settle_seconds:
             return None, SkippedPath(path, SkipReason.UNSETTLED)
 
-        try:
-            final_stat = path.lstat()
-            resolved = path.resolve(strict=True)
-        except (OSError, RuntimeError) as exc:
-            return None, SkippedPath(path, SkipReason.UNREADABLE, str(exc))
-
-        if stat.S_ISLNK(final_stat.st_mode) or resolved != path:
-            return None, SkippedPath(path, SkipReason.SYMLINK)
-        if not stat.S_ISREG(final_stat.st_mode):
-            return None, SkippedPath(path, SkipReason.NOT_REGULAR)
-        if not resolved.is_relative_to(watch_root):
-            return None, SkippedPath(path, SkipReason.OUTSIDE_WATCH)
-        if self._is_protected(resolved):
-            return None, SkippedPath(path, SkipReason.PROTECTED)
-        if self._is_inside_destination(resolved):
-            return None, SkippedPath(path, SkipReason.INSIDE_DESTINATION)
-
-        fingerprint = FileCandidate(
-            source=resolved,
-            watch_root=watch_root,
-            destination_root=watch.destination_root,
-            size=final_stat.st_size,
-            mtime_ns=final_stat.st_mtime_ns,
-            device=final_stat.st_dev,
-            inode=final_stat.st_ino,
-        )
-        if not fingerprint.matches_stat(first_stat):
-            return None, SkippedPath(path, SkipReason.CHANGED)
+        if first_stat.st_size > self._max_file_size_bytes:
+            detail = (
+                f"{first_stat.st_size} bytes exceeds "
+                f"max_file_size_mb={self._max_file_size_mb}"
+            )
+            return None, SkippedPath(path, SkipReason.TOO_LARGE, detail)
 
         if resolved in seen_sources:
             return None, SkippedPath(path, SkipReason.DUPLICATE)
         seen_sources.add(resolved)
-        return fingerprint, None
+
+        return (
+            FileCandidate(
+                source=resolved,
+                watch_root=watch_root,
+                destination_root=watch.destination_root,
+                size=first_stat.st_size,
+                mtime_ns=first_stat.st_mtime_ns,
+                device=first_stat.st_dev,
+                inode=first_stat.st_ino,
+            ),
+            None,
+        )
+
+    def _verify_stability(
+        self,
+        candidates: list[FileCandidate],
+    ) -> tuple[list[FileCandidate], list[SkippedPath]]:
+        if not candidates:
+            return [], []
+
+        self._sleep(self._stability_delay_s)
+        stable: list[FileCandidate] = []
+        skipped: list[SkippedPath] = []
+
+        for candidate in candidates:
+            try:
+                second_stat = candidate.source.lstat()
+            except OSError as exc:
+                skipped.append(SkippedPath(candidate.source, SkipReason.UNREADABLE, str(exc)))
+                continue
+
+            if stat.S_ISLNK(second_stat.st_mode):
+                skipped.append(
+                    SkippedPath(
+                        candidate.source,
+                        SkipReason.CHANGED,
+                        "file became a symlink during the stability delay",
+                    )
+                )
+                continue
+            if not stat.S_ISREG(second_stat.st_mode):
+                skipped.append(
+                    SkippedPath(
+                        candidate.source,
+                        SkipReason.CHANGED,
+                        "file is no longer a regular file",
+                    )
+                )
+                continue
+
+            try:
+                resolved = candidate.source.resolve(strict=True)
+            except (OSError, RuntimeError) as exc:
+                skipped.append(
+                    SkippedPath(candidate.source, SkipReason.UNREADABLE, str(exc))
+                )
+                continue
+            if resolved != candidate.source:
+                skipped.append(
+                    SkippedPath(
+                        candidate.source,
+                        SkipReason.CHANGED,
+                        "path now traverses a symlink",
+                    )
+                )
+                continue
+            if not resolved.is_relative_to(candidate.watch_root):
+                skipped.append(SkippedPath(candidate.source, SkipReason.OUTSIDE_WATCH))
+                continue
+            if not candidate.matches_stat(second_stat):
+                skipped.append(
+                    SkippedPath(
+                        candidate.source,
+                        SkipReason.CHANGED,
+                        "size, mtime, device, or inode changed",
+                    )
+                )
+                continue
+
+            stable.append(candidate)
+
+        return stable, skipped
 
     def _is_protected(self, path: Path) -> bool:
         resolved = _resolve_for_comparison(path)
         return any(
             resolved == protected or resolved.is_relative_to(protected)
             for protected in self._protected_paths
-        )
-
-    def _is_inside_destination(self, path: Path) -> bool:
-        resolved = _resolve_for_comparison(path)
-        return any(
-            resolved == destination or resolved.is_relative_to(destination)
-            for destination in self._destination_roots
         )
 
     def _is_ignored(self, path: Path, watch_root: Path, relative: Path) -> bool:

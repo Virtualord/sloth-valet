@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from conftest import make_file, write_config
 from typer.testing import CliRunner
 
@@ -10,6 +11,11 @@ from sloth_valet.cli import app
 from sloth_valet.config import example_config_text
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _skip_stability_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sloth_valet.scanner.time.sleep", lambda _seconds: None)
 
 
 def test_scan_json_lists_candidates_without_changing_files(tmp_path: Path) -> None:
