@@ -8,7 +8,7 @@ scan -> extract -> classify -> plan -> apply -> report
          ^ model call only here
 ```
 
-## Current stages: scan, extract, classify
+## Current stages: scan, extract, classify, plan, apply, undo
 
 `scanner.Scanner` walks each configured watch root and produces:
 
@@ -59,6 +59,42 @@ the chat endpoint. Tests inject `httpx.MockTransport`, so CI never needs Ollama.
 single live test is skipped unless `SLOTH_VALET_LIVE=1` and
 `SLOTH_VALET_TEST_MODEL` are set; it never hardcodes a model name.
 
+`runner.execute_run` is the plain-code loop. It creates a run id, reconciles any
+pending journal rows, scans, extracts only for files that did not take a fast path,
+classifies, plans, and either previews or applies. It never asks the model to choose a
+path and never executes model text. Every failed classification is reviewed or left
+alone according to `general.review_on_failure`.
+
+`planner.Planner` builds destinations from a resolved destination root, an
+allowlisted category, one sanitized subfolder component, and one sanitized filename.
+It checks the disk and a plan-local reservation set, then appends `-1`, `-2`, and so
+on before the extension until the path is free. It rejects an existing destination
+symlink as a collision and refuses a category directory that resolves outside the
+destination root. Review moves use the configured `_review` folder and the sanitized
+original filename.
+
+`applier.Applier` revalidates the candidate fingerprint, source/watch-root
+confinement, destination-root confinement, destination parent, and destination
+absence immediately before moving. It hashes the source, writes a `pending` journal
+row with run id, source, destination, SHA-256, size, and timestamp, then moves. Same
+filesystem moves use `os.rename`; `EXDEV` falls back to a no-overwrite copy, SHA-256
+verification, and source removal. The row becomes `done` only after success. A failed
+move keeps the source and records `failed`. A pending row left by a crash is
+reconciled on the next run without deleting an ambiguous file: completed destinations
+are marked done, while any ambiguous state is marked failed with an explanation.
+
+Undo reads only `done` rows from the selected run, in reverse order. It requires the
+destination to still exist as a regular file, the stored hash to match, the path to
+remain inside the configured roots, and the original path to be free and inside a
+watch root. Anything else is skipped with a reason. A successful restore is marked
+`reverted`.
+
+The SQLite journal lives beside `general.reports_dir`
+(`<reports_dir parent>/journal.sqlite3`), never inside a watch root because config
+loading rejects a `reports_dir` under any watch root. It has a `runs` table for every
+invocation (including dry runs) and a `moves` table with pending/done/failed/reverted
+state.
+
 ## Modules
 
 - `config.py` - TOML loading and frozen, strict Pydantic models. Relative paths
@@ -75,15 +111,17 @@ single live test is skipped unless `SLOTH_VALET_LIVE=1` and
 - `classifier.py` - deterministic fast path, prompt construction, strict parsing,
   allowlist/confidence enforcement, and failure records.
 - `scanner.py` - read-only candidate discovery and pre-model safety filters.
-- `cli.py` - Typer composition root. The current `scan` command is intentionally
-  read-only.
+- `planner.py` - collision-free destinations and review routing, with no filesystem
+  writes.
+- `journal.py` - SQLite run/move records and explicit state transitions.
+- `applier.py` - revalidating moves, cross-filesystem verification, pending-row
+  reconciliation, and cautious undo.
+- `runner.py` - the plain-code pipeline and dry-run/apply selection.
+- `cli.py` - Typer composition root for `scan`, `run`, `undo`, and config commands.
 
 ## Planned stages
 
-- **plan** - resolve destination and collision names without touching disk.
-- **apply** - journal pending, revalidate paths and fingerprints, move without
-  overwriting, mark done.
 - **report** - a short Markdown summary of moves, reviews, skips, and errors.
 
-The journal, undo path, and report are part of the trust boundary: a crash between
-any two stages must leave the filesystem and journal in a recoverable state.
+The journal and undo path are part of the trust boundary: a crash between any two
+stages must leave the filesystem and journal in a recoverable state.

@@ -6,8 +6,11 @@ invariants that are implemented and tested at each phase.
 ## Current guarantees
 
 - **Configuration is validated before use.** Missing required keys, unknown keys,
-  invalid category names, invalid model URLs, bad paths, and unsafe review-folder
-  names fail closed. Relative paths resolve against the config file and `~` expands.
+  invalid category names, invalid model URLs, bad paths, unsafe review-folder names,
+  destination roots inside watch roots, and a `reports_dir` inside any watch root fail
+  closed. The journal is derived from the reports directory, so it cannot be scanned
+  and moved by the pipeline. Relative paths resolve against the config file and `~`
+  expands.
 - **Destination roots cannot sit inside watch roots.** Config loading compares every
   destination root with every watch root, including through symlinks, and refuses any
   overlap that would let a scan see its own output tree.
@@ -75,20 +78,53 @@ invariants that are implemented and tested at each phase.
   converted into a made-up category or name.
 - **Category names are constrained.** Category config values are lowercase path-safe
   slugs, so an allowlisted category cannot introduce a path separator.
-- **Dry-run is the default.** `dry_run = true` is the config default. The current
-  `scan` command is read-only regardless of the setting.
+- **Review routing is configurable and safe.** Classifier failures are moved only to
+  `<destination_root>/<review_folder>/<sanitized original name>` when
+  `general.review_on_failure` is true (the default). The review name goes through the
+  same sanitizer and collision numbering as every other name. When it is false, the
+  file is left untouched and reported. A review file is still a journaled move and can
+  be undone.
+- **Planning never overwrites.** Destinations are checked against the disk and a
+  plan-local reservation set. Existing files, directories, and symlinks force a
+  numbered suffix. The applier checks destination absence again immediately before the
+  move, and cross-filesystem copies use exclusive creation (`O_EXCL`).
+- **Apply revalidates everything.** Before a move the applier re-stats the source and
+  requires the same size, mtime, device, and inode as the scan. It resolves the source,
+  requires it to be a regular non-symlink inside a configured watch root, resolves the
+  destination parent, requires it inside a configured destination root, and refuses a
+  destination that exists. A changed file is never moved.
+- **Every move is journaled.** The source is SHA-256 hashed and a `pending` row is
+  committed with run id, source, destination, hash, size, and timestamp before the
+  move. Only a successful move becomes `done`; a failure becomes `failed` and leaves
+  the source. A crash after the rename but before the update leaves a pending row.
+- **Cross-filesystem moves verify before removing the source.** After an `EXDEV`
+  rename, the applier creates the destination exclusively, copies, fsyncs, hashes the
+  destination, compares it with the pre-move source hash, and only then unlinks the
+  source. A failed verification removes only the partial copy it created.
+- **Crash reconciliation never guesses destructively.** On startup, pending rows are
+  examined. A missing source plus a matching destination is completed as `done`; a
+  present source with no destination is marked failed and can be retried; both copies
+  present, a hash mismatch, or both missing is marked failed with an explanation and
+  both files are left for inspection. Reconciliation never deletes an ambiguous file.
+- **Undo is conditional.** Undo requires the destination to exist as a regular
+  non-symlink, its current SHA-256 to equal the journal, both paths to remain inside
+  configured roots, and the original path to be free with an existing non-symlink
+  parent. It restores in reverse order and marks the journal `reverted`. Any refusal
+  leaves both paths untouched and prints the reason.
+- **Dry-run is the default.** `general.dry_run = true` is the config default. `valet
+  run` previews by default, writes no pending rows, and moves nothing; `--apply` or
+  `dry_run = false` is required to act. `valet scan` remains read-only regardless of
+  the setting. Undo always requires an explicit completed run.
 
 ## Deferred guarantees
 
 The following are specified and will be implemented in later phases:
 
-- collision-safe, non-overwriting moves and a pending/done move journal;
-- path and fingerprint revalidation immediately before apply and undo;
-- review routing for classifier failures and unattended Markdown reports.
+- unattended Markdown reports and systemd scheduling.
 
 ## Reporting a safety issue
 
-Do not run with `dry_run = false` on important data until the phase that introduces
-moves has landed and its safety tests pass. If you find a path that escapes a root or
-a case where file contents are read before the pre-model safety checks, treat it as a
-release blocker.
+Always read a dry-run plan against a copy of real data before the first `--apply`.
+If you find a path that escapes a root, an overwrite, a move that is not journaled
+before it happens, or a case where file contents are read before the pre-model safety
+checks, treat it as a release blocker.

@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 
 from sloth_valet.cli import app
 from sloth_valet.config import example_config_text
+from sloth_valet.journal import Journal, RunMode
 
 runner = CliRunner()
 
@@ -112,3 +113,172 @@ def test_config_show_rejects_invalid_config(tmp_path: Path) -> None:
     result = runner.invoke(app, ["--config", str(invalid), "config", "show"])
 
     assert result.exit_code == 2
+
+
+def test_run_defaults_to_dry_run_even_with_fast_path(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    source = make_file(paths.watch / "tool.deb")
+
+    result = runner.invoke(app, ["--config", str(paths.config_path), "run"])
+
+    assert result.exit_code == 0, result.output
+    assert "Dry run" in result.output
+    assert "would move" in result.output
+    assert source.exists()
+    assert not (paths.destination / "installers" / "tool.deb").exists()
+    with Journal(paths.load().journal_path) as journal:
+        record = journal.last_run()
+        assert record is not None
+        assert record.mode is RunMode.DRY_RUN
+
+
+def test_run_apply_moves_file(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    source = make_file(paths.watch / "tool.deb")
+
+    result = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "moved:" in result.output
+    assert "moved=1" in result.output
+    assert not source.exists()
+    assert (paths.destination / "installers" / "tool.deb").exists()
+
+
+def test_config_dry_run_false_applies_without_flag(tmp_path: Path) -> None:
+    paths = write_config(
+        tmp_path,
+        dry_run=False,
+        fast_path={".deb": "installers"},
+    )
+    source = make_file(paths.watch / "tool.deb")
+
+    result = runner.invoke(app, ["--config", str(paths.config_path), "run"])
+
+    assert result.exit_code == 0, result.output
+    assert not source.exists()
+    assert (paths.destination / "installers" / "tool.deb").exists()
+
+
+def test_second_apply_run_is_a_noop(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    source = make_file(paths.watch / "tool.deb")
+    destination = paths.destination / "installers" / "tool.deb"
+
+    first = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+    second = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 0, second.output
+    assert not source.exists()
+    assert destination.exists()
+    assert "moved=0" in second.output
+
+
+def test_undo_last_restores_file_and_journal_status(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    source = make_file(paths.watch / "tool.deb")
+
+    applied = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+    undone = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "undo", "--last"],
+    )
+
+    assert applied.exit_code == 0, applied.output
+    assert undone.exit_code == 0, undone.output
+    assert "restored=1" in undone.output
+    assert source.exists()
+    assert not (paths.destination / "installers" / "tool.deb").exists()
+    with Journal(paths.load().journal_path) as journal:
+        record = journal.last_run()
+        assert record is not None
+        moves = journal.moves_for_run(record.id)
+        assert moves[0].status.value == "reverted"
+
+
+def test_undo_by_run_id(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    source = make_file(paths.watch / "tool.deb")
+    applied = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+    assert applied.exit_code == 0, applied.output
+    with Journal(paths.load().journal_path) as journal:
+        record = journal.last_run()
+        assert record is not None
+        run_id = record.id
+
+    undone = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "undo", "--run", run_id],
+    )
+
+    assert undone.exit_code == 0, undone.output
+    assert source.exists()
+
+
+def test_undo_refuses_to_overwrite_occupied_original_path(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    source = make_file(paths.watch / "tool.deb")
+    applied = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+    assert applied.exit_code == 0, applied.output
+    source.write_text("new file", encoding="utf-8")
+
+    undone = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "undo", "--last"],
+    )
+
+    assert undone.exit_code == 0, undone.output
+    assert "skipped=1" in undone.output
+    assert source.read_text(encoding="utf-8") == "new file"
+    assert (paths.destination / "installers" / "tool.deb").exists()
+
+
+def test_undo_requires_exactly_one_selector(tmp_path: Path) -> None:
+    paths = write_config(tmp_path)
+
+    neither = runner.invoke(app, ["--config", str(paths.config_path), "undo"])
+    both = runner.invoke(
+        app,
+        [
+            "--config",
+            str(paths.config_path),
+            "undo",
+            "--last",
+            "--run",
+            "abc",
+        ],
+    )
+
+    assert neither.exit_code == 2
+    assert both.exit_code == 2
+
+
+def test_undo_unknown_run_exits_nonzero(tmp_path: Path) -> None:
+    paths = write_config(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "undo", "--run", "missing"],
+    )
+
+    assert result.exit_code == 1
+    assert "not found" in result.output

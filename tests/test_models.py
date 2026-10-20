@@ -91,6 +91,7 @@ def test_pipeline_domain_models_compose() -> None:
     created_at = datetime(2026, 10, 20, 8, 0, tzinfo=UTC)
 
     assert planned.source == candidate.source
+    assert planned.classification is not None
     assert planned.classification.category == "finance"
     record = MoveRecord(
         source=planned.source,
