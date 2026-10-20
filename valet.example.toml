@@ -1,0 +1,49 @@
+# Valet configuration example.
+#
+# Copy to ~/.config/sloth-valet/config.toml (or pass --config).
+# Relative paths are resolved against this file's directory.
+
+[general]
+dry_run = true
+settle_minutes = 30
+review_folder = "_review"
+reports_dir = "~/.local/share/sloth-valet/reports"
+journal_path = "~/.local/share/sloth-valet/journal.db"
+# "leave" keeps an uncertain file where it is. "review" moves it to _review/.
+on_uncertain = "leave"
+
+[model]
+host = "http://localhost:11434"
+# Never invent a model name. Run `ollama list` and copy an installed model here.
+name = "set-me-after-checking-ollama-list"
+temperature = 0
+timeout_s = 60
+min_confidence = 0.7
+text_chars = 1500
+
+[[watch]]
+path = "~/Downloads"
+destination_root = "~/Sorted"
+recursive = false
+
+[protect]
+paths = ["~/.ssh", "~/.config", "~/.gnupg"]
+globs = ["*.part", "*.crdownload", "*.tmp", ".*"]
+
+[categories]
+allowed = [
+  "academic",
+  "career",
+  "finance",
+  "installers",
+  "archives",
+  "screenshots",
+  "code",
+  "media",
+  "misc",
+]
+
+[fast_path]
+".deb" = "installers"
+".iso" = "installers"
+".appimage" = "installers"
