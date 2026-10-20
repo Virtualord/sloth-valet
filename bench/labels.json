@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "seed": 20261020,
+  "fixtures": [
+    {
+      "file": "academic-graph-theory-notes.pdf",
+      "category": "academic",
+      "description": "Week 4 lecture notes on graph traversal, shortest paths, and complexity for the algorithms course."
+    },
+    {
+      "file": "academic-research-methods.docx",
+      "category": "academic",
+      "description": "Literature review outline for a research methods assignment on qualitative interviews."
+    },
+    {
+      "file": "academic-statistics-problem-set.txt",
+      "category": "academic",
+      "description": "Problem set with confidence intervals, hypothesis tests, and regression exercises."
+    },
+    {
+      "file": "academic-conference-paper.md",
+      "category": "academic",
+      "description": "Draft conference paper abstract and references on distributed systems."
+    },
+    {
+      "file": "academic-reading-list.csv",
+      "category": "academic",
+      "description": "Course reading list with authors, chapters, due dates, and seminar topics."
+    },
+    {
+      "file": "academic-thesis-outline.pdf",
+      "category": "academic",
+      "description": "Chapter outline and bibliography plan for a master's thesis."
+    },
+    {
+      "file": "academic-lecture-slides-05.pdf",
+      "category": "academic",
+      "description": "Slides for lecture five covering linear algebra and eigenvalues."
+    },
+    {
+      "file": "academic-scholarship-notes.txt",
+      "category": "academic",
+      "description": "Notes on scholarship application requirements and academic deadlines."
+    },
+    {
+      "file": "career-resume-2026.pdf",
+      "category": "career",
+      "description": "Current resume with software engineering experience and education."
+    },
+    {
+      "file": "career-cover-letter.docx",
+      "category": "career",
+      "description": "Cover letter for a backend engineer position at a small company."
+    },
+    {
+      "file": "career-job-offer.txt",
+      "category": "career",
+      "description": "Offer letter with salary, start date, and benefits for a developer role."
+    },
+    {
+      "file": "career-interview-questions.md",
+      "category": "career",
+      "description": "Practice questions for a technical interview on data structures."
+    },
+    {
+      "file": "career-performance-review.pdf",
+      "category": "career",
+      "description": "Annual performance review and goals for the next year."
+    },
+    {
+      "file": "finance-bank-statement-october.pdf",
+      "category": "finance",
+      "description": "Monthly bank statement with account balance and transaction totals."
+    },
+    {
+      "file": "finance-credit-card-bill.csv",
+      "category": "finance",
+      "description": "Credit card purchases, payment due date, and interest charges."
+    },
+    {
+      "file": "finance-tax-summary-2025.txt",
+      "category": "finance",
+      "description": "Tax summary with income, deductions, and filing notes."
+    },
+    {
+      "file": "finance-rent-receipt.pdf",
+      "category": "finance",
+      "description": "Rent receipt for October with landlord and payment details."
+    },
+    {
+      "file": "finance-invoice-1042.pdf",
+      "category": "finance",
+      "description": "Invoice for consulting services with amount due and payment terms."
+    },
+    {
+      "file": "finance-budget-plan.csv",
+      "category": "finance",
+      "description": "Household budget with categories, planned spending, and savings."
+    },
+    {
+      "file": "finance-payslip-september.pdf",
+      "category": "finance",
+      "description": "Payslip showing gross pay, tax withheld, and pension contribution."
+    },
+    {
+      "file": "finance-insurance-renewal.docx",
+      "category": "finance",
+      "description": "Home insurance renewal with premium, coverage, and renewal date."
+    },
+    {
+      "file": "installers-docker-desktop.deb",
+      "category": "installers",
+      "description": "Downloaded Debian package installer for a desktop container tool."
+    },
+    {
+      "file": "installers-python-tool.AppImage",
+      "category": "installers",
+      "description": "Portable AppImage installer for a Python development utility."
+    },
+    {
+      "file": "installers-driver-setup.exe",
+      "category": "installers",
+      "description": "Windows driver setup executable downloaded for a laptop."
+    },
+    {
+      "file": "installers-firmware-update.iso",
+      "category": "installers",
+      "description": "Firmware update disk image for a network router."
+    },
+    {
+      "file": "archives-old-project-backup.zip",
+      "category": "archives",
+      "description": "Compressed archive containing an old project backup."
+    },
+    {
+      "file": "archives-photos-2025.tar.gz",
+      "category": "archives",
+      "description": "Archive of photos from a 2025 trip."
+    },
+    {
+      "file": "archives-source-release.zip",
+      "category": "archives",
+      "description": "Source code archive for a released library."
+    },
+    {
+      "file": "archives-website-export.zip",
+      "category": "archives",
+      "description": "Exported website archive with HTML and asset files."
+    },
+    {
+      "file": "screenshots-settings-window.png",
+      "category": "screenshots",
+      "description": "Screenshot of the system settings window."
+    },
+    {
+      "file": "screenshots-error-dialog.png",
+      "category": "screenshots",
+      "description": "Screenshot of an application error dialog."
+    },
+    {
+      "file": "screenshots-chart-dashboard.png",
+      "category": "screenshots",
+      "description": "Screenshot of a dashboard with charts and metrics."
+    },
+    {
+      "file": "screenshots-map-route.png",
+      "category": "screenshots",
+      "description": "Screenshot of a map showing a driving route."
+    },
+    {
+      "file": "screenshots-chat-thread.png",
+      "category": "screenshots",
+      "description": "Screenshot of a chat conversation."
+    },
+    {
+      "file": "code-retry-helper.py",
+      "category": "code",
+      "description": "Python helper implementing exponential backoff and retries."
+    },
+    {
+      "file": "code-api-schema.json",
+      "category": "code",
+      "description": "JSON schema for an API request and response."
+    },
+    {
+      "file": "code-deploy-script.sh",
+      "category": "code",
+      "description": "Shell script that deploys a web service and restarts it."
+    },
+    {
+      "file": "code-regex-notes.md",
+      "category": "code",
+      "description": "Notes and examples for regular expressions."
+    },
+    {
+      "file": "code-database-migration.sql",
+      "category": "code",
+      "description": "SQL migration adding an index and a new table."
+    },
+    {
+      "file": "code-css-theme.css",
+      "category": "code",
+      "description": "CSS theme with color variables and responsive layout."
+    },
+    {
+      "file": "code-makefile.txt",
+      "category": "code",
+      "description": "Makefile with build, test, and clean targets."
+    },
+    {
+      "file": "media-interview-recording.mp3",
+      "category": "media",
+      "description": "Audio recording of an interview."
+    },
+    {
+      "file": "media-holiday-video.mp4",
+      "category": "media",
+      "description": "Video clip from a holiday trip."
+    },
+    {
+      "file": "media-podcast-episode.mp3",
+      "category": "media",
+      "description": "Podcast episode about technology and design."
+    },
+    {
+      "file": "media-album-cover.jpg",
+      "category": "media",
+      "description": "Album cover image for a music collection."
+    },
+    {
+      "file": "media-voice-memo.m4a",
+      "category": "media",
+      "description": "Voice memo with meeting notes."
+    },
+    {
+      "file": "misc-random-notes.txt",
+      "category": "misc",
+      "description": "Short notes without a clear subject."
+    },
+    {
+      "file": "misc-todo.md",
+      "category": "misc",
+      "description": "Mixed personal todo list with errands and reminders."
+    },
+    {
+      "file": "misc-recipe.txt",
+      "category": "misc",
+      "description": "Recipe for a simple vegetable soup."
+    },
+    {
+      "file": "misc-unknown-download.dat",
+      "category": "misc",
+      "description": "Unknown binary download with no clear purpose."
+    }
+  ]
+}

@@ -134,12 +134,15 @@ invariants that are implemented and tested at each phase.
   only those two names. `status` reads local state and never invokes `systemctl`.
   Installing the timer is an explicit decision to apply moves automatically; run a
   dry-run first.
-
-## Deferred guarantees
-
-The following are specified and will be implemented in the next phase:
-
-- the seeded benchmark fixture generator and model comparison harness.
+- **The benchmark is read-only.** It loads labels from a validated JSON file, rejects
+  unsafe or duplicate names, resolves each fixture to a regular non-symlink file
+  inside the fixture directory, and requires every expected category to be in the
+  configured allowlist. It calls the classifier directly, disables fast paths so the
+  model is genuinely measured, and never creates journal rows, plans, moves, deletes,
+  or writes reports. Fixture generation refuses to replace existing files without an
+  explicit overwrite request, never deletes unrelated files, and treats a symlinked
+  fixture path as an error. Benchmark results use exclusive creation, and the
+  repository does not ship invented model names or fabricated metrics.
 
 ## Reporting a safety issue
 

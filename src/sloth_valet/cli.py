@@ -19,6 +19,12 @@ from sloth_valet.applier import (
     UndoOutcome,
     UndoStatus,
 )
+from sloth_valet.bench import (
+    load_benchmark_fixtures,
+    parse_models,
+    run_benchmark,
+    write_benchmark_results,
+)
 from sloth_valet.config import (
     ConfigError,
     ValetConfig,
@@ -26,6 +32,7 @@ from sloth_valet.config import (
     example_config_text,
     load_config,
 )
+from sloth_valet.fixtures import load_fixture_manifest
 from sloth_valet.journal import Journal
 from sloth_valet.runner import RunResult, execute_run
 from sloth_valet.scanner import Scanner
@@ -489,6 +496,90 @@ def status(ctx: typer.Context) -> None:
     else:
         typer.echo("  timer: not installed")
         typer.echo("  next: valet install-timer --time 03:00")
+
+
+@app.command()
+def bench(
+    ctx: typer.Context,
+    models: Annotated[
+        str,
+        typer.Option(
+            "--models",
+            help="Comma-separated Ollama model names; no model name is built in.",
+        ),
+    ],
+    fixtures: Annotated[
+        Path,
+        typer.Option("--fixtures", help="Directory containing the generated fixtures."),
+    ] = Path("bench/fixtures"),
+    labels: Annotated[
+        Path,
+        typer.Option("--labels", help="Committed labels JSON for the fixtures."),
+    ] = Path("bench/labels.json"),
+    results_dir: Annotated[
+        Path,
+        typer.Option("--results-dir", help="Directory for JSON and Markdown results."),
+    ] = Path("bench/results"),
+    measure_memory: Annotated[
+        bool,
+        typer.Option(
+            "--measure-memory",
+            help="Include best-effort peak Ollama RSS from Linux /proc.",
+        ),
+    ] = False,
+) -> None:
+    """Compare local Ollama models against the committed fixture labels."""
+    state = _state_or_exit(ctx)
+    config = _load_or_exit(state)
+    try:
+        selected_models = parse_models(models)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    try:
+        manifest = load_fixture_manifest(labels)
+    except (OSError, ValueError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    try:
+        fixture_set = load_benchmark_fixtures(
+            manifest,
+            fixtures,
+            allowed_categories=config.categories.allowed,
+        )
+        run = run_benchmark(
+            config,
+            selected_models,
+            fixture_set,
+            labels_path=labels,
+            fixtures_dir=fixtures,
+            measure_memory=measure_memory,
+        )
+        json_path, markdown_path = write_benchmark_results(run, results_dir)
+    except OSError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    typer.echo(
+        f"Benchmarked {run.fixture_count} fixtures with {len(run.models)} model(s)."
+    )
+    for result in run.models:
+        confidence = (
+            f"{result.mean_confidence:.3f}"
+            if result.mean_confidence is not None
+            else "-"
+        )
+        typer.echo(
+            f"{result.model}: valid JSON {result.valid_json_rate:.1%}, "
+            f"category {result.category_accuracy:.1%}, "
+            f"mean confidence {confidence}, "
+            f"mean latency {result.mean_latency_ms:.1f} ms"
+        )
+    typer.echo(f"Wrote {json_path}")
+    typer.echo(f"Wrote {markdown_path}")
 
 
 def _print_undo_outcomes(outcomes: tuple[UndoOutcome, ...]) -> None:
