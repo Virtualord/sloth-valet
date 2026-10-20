@@ -42,6 +42,7 @@ class RunRecord:
     review_count: int
     skipped_count: int
     failed_count: int
+    report_path: Path | None = None
 
 
 class Journal:
@@ -67,7 +68,8 @@ class Journal:
                     moved_count INTEGER NOT NULL DEFAULT 0,
                     review_count INTEGER NOT NULL DEFAULT 0,
                     skipped_count INTEGER NOT NULL DEFAULT 0,
-                    failed_count INTEGER NOT NULL DEFAULT 0
+                    failed_count INTEGER NOT NULL DEFAULT 0,
+                    report_path TEXT
                 );
 
                 CREATE TABLE IF NOT EXISTS moves (
@@ -88,6 +90,12 @@ class Journal:
                 CREATE INDEX IF NOT EXISTS moves_status_index ON moves(status);
                 """
             )
+            run_columns = {
+                str(row["name"])
+                for row in self._connection.execute("PRAGMA table_info(runs)")
+            }
+            if "report_path" not in run_columns:
+                self._connection.execute("ALTER TABLE runs ADD COLUMN report_path TEXT")
 
     def start_run(self, mode: RunMode, *, now: datetime | None = None) -> str:
         run_id = uuid.uuid4().hex
@@ -216,6 +224,19 @@ class Journal:
         if cursor.rowcount != 1:
             raise JournalError(f"move {move_id!r} does not exist")
 
+    def set_report_path(
+        self,
+        run_id: str,
+        report_path: Path,
+    ) -> None:
+        with self._connection:
+            cursor = self._connection.execute(
+                "UPDATE runs SET report_path = ? WHERE id = ?",
+                (str(report_path), run_id),
+            )
+        if cursor.rowcount != 1:
+            raise JournalError(f"run {run_id!r} does not exist")
+
     def get_move(self, move_id: int) -> MoveRecord | None:
         row = self._connection.execute(
             "SELECT * FROM moves WHERE id = ?", (move_id,)
@@ -251,20 +272,28 @@ class Journal:
         ).fetchone()
         return _run_from_row(row) if row is not None else None
 
-    def last_run(self, *, with_done_moves: bool = False) -> RunRecord | None:
+    def last_run(
+        self,
+        *,
+        with_done_moves: bool = False,
+        with_report: bool = False,
+    ) -> RunRecord | None:
+        conditions: list[str] = []
+        parameters: list[object] = []
         if with_done_moves:
-            query = """
-                SELECT r.* FROM runs AS r
-                WHERE EXISTS (
-                    SELECT 1 FROM moves AS m
-                    WHERE m.run_id = r.id AND m.status = ?
-                )
-                ORDER BY r.started_at DESC, r.rowid DESC LIMIT 1
-            """
-            parameters: tuple[object, ...] = (MoveStatus.DONE.value,)
-        else:
-            query = "SELECT * FROM runs ORDER BY started_at DESC, rowid DESC LIMIT 1"
-            parameters = ()
+            conditions.append(
+                "EXISTS ("
+                "SELECT 1 FROM moves AS m "
+                "WHERE m.run_id = r.id AND m.status = ?"
+                ")"
+            )
+            parameters.append(MoveStatus.DONE.value)
+        if with_report:
+            conditions.append("r.report_path IS NOT NULL")
+        query = "SELECT r.* FROM runs AS r"
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY r.started_at DESC, r.rowid DESC LIMIT 1"
         row = self._connection.execute(query, parameters).fetchone()
         return _run_from_row(row) if row is not None else None
 
@@ -332,4 +361,7 @@ def _run_from_row(row: sqlite3.Row) -> RunRecord:
         review_count=int(row["review_count"]),
         skipped_count=int(row["skipped_count"]),
         failed_count=int(row["failed_count"]),
+        report_path=(
+            Path(row["report_path"]) if row["report_path"] is not None else None
+        ),
     )

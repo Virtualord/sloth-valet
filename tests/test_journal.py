@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -120,6 +121,59 @@ def test_pending_moves_are_listed(tmp_path: Path) -> None:
 
     assert [record.id for record in pending] == [move_id]
     journal.close()
+
+
+def test_report_path_round_trip_and_last_run_with_report(tmp_path: Path) -> None:
+    journal = Journal(tmp_path / "journal.sqlite3")
+    first = journal.start_run(RunMode.DRY_RUN, now=FIXED_TIME)
+    second = journal.start_run(RunMode.APPLY, now=FIXED_TIME.replace(hour=4))
+    journal.finish_run(first, now=FIXED_TIME)
+    journal.finish_run(second, now=FIXED_TIME.replace(hour=4))
+    report = tmp_path / "reports" / "first.md"
+    journal.set_report_path(first, report)
+
+    record = journal.get_run(first)
+    last_with_report = journal.last_run(with_report=True)
+
+    assert record is not None
+    assert record.report_path == report
+    assert last_with_report is not None and last_with_report.id == first
+    journal.close()
+
+
+def test_phase_five_journal_is_migrated_with_a_report_path_column(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "old.sqlite3"
+    connection = sqlite3.connect(path)
+    connection.execute(
+        """
+        CREATE TABLE runs (
+            id TEXT PRIMARY KEY,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            status TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            moved_count INTEGER NOT NULL DEFAULT 0,
+            review_count INTEGER NOT NULL DEFAULT 0,
+            skipped_count INTEGER NOT NULL DEFAULT 0,
+            failed_count INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    connection.execute(
+        "INSERT INTO runs VALUES (?, ?, NULL, ?, ?, 0, 0, 0, 0)",
+        ("old", FIXED_TIME.isoformat(), "completed", "apply"),
+    )
+    connection.commit()
+    connection.close()
+
+    with Journal(path) as journal:
+        journal.set_report_path("old", tmp_path / "old.md")
+        record = journal.get_run("old")
+
+    assert record is not None
+    assert record.report_path == tmp_path / "old.md"
 
 
 def test_unknown_run_is_rejected(tmp_path: Path) -> None:

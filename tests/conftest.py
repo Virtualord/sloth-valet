@@ -50,6 +50,7 @@ def write_config(
     model_temperature: float = 0,
     review_on_failure: bool = True,
     review_folder: str = "_review",
+    notify: bool = False,
     globs: tuple[str, ...] = ("*.part", "*.crdownload", "*.tmp", ".*"),
     protect_paths: tuple[Path, ...] = (),
     categories: tuple[str, ...] = DEFAULT_CATEGORIES,
@@ -79,6 +80,7 @@ settle_minutes = {settle_minutes}
 max_file_size_mb = {max_file_size_mb}
 review_folder = {_toml_string(review_folder)}
 review_on_failure = {str(review_on_failure).lower()}
+notify = {str(notify).lower()}
 reports_dir = {_toml_string(reports_dir)}
 
 [model]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -11,10 +11,11 @@ from sloth_valet.applier import Applier, ApplyStatus, MoveOutcome, PendingRepair
 from sloth_valet.classifier import Classifier
 from sloth_valet.config import ValetConfig
 from sloth_valet.extract import extract_file
-from sloth_valet.journal import Journal, RunMode, RunRecord, RunStatus
+from sloth_valet.journal import Journal, JournalError, RunMode, RunRecord, RunStatus
 from sloth_valet.models import ClassificationResult, ScanResult
 from sloth_valet.ollama import OllamaClient
 from sloth_valet.planner import ClassifiedFile, Plan, Planner, PlanSkip
+from sloth_valet.report import notify_if_enabled, write_report
 from sloth_valet.scanner import DEFAULT_STABILITY_DELAY_S, Scanner
 
 
@@ -101,8 +102,10 @@ def execute_run(
                 candidate.source,
                 max_chars=config.model.text_chars,
             )
-            result: ClassificationResult = classifier.classify(candidate, extraction)
-            classified.append(ClassifiedFile(candidate, result))
+            classification_result: ClassificationResult = classifier.classify(
+                candidate, extraction
+            )
+            classified.append(ClassifiedFile(candidate, classification_result))
 
         plan = Planner(config).plan(classified)
         outcomes = applier.apply(plan, run_id) if apply else applier.preview(plan)
@@ -134,7 +137,7 @@ def execute_run(
         run_record = active_journal.get_run(run_id)
         if run_record is None:
             raise RuntimeError("journal lost the run record immediately after finishing")
-        return _run_result(
+        result = _run_result(
             run_record,
             scan_result,
             plan,
@@ -142,6 +145,15 @@ def execute_run(
             pending_repairs,
             active_journal.path,
         )
+        try:
+            report_path = write_report(config, result)
+            active_journal.set_report_path(run_id, report_path)
+            result = replace(result, report_path=report_path)
+        except (OSError, JournalError):
+            # Reporting must never turn a completed move into a failed run.
+            pass
+        notify_if_enabled(config, result)
+        return result
     except BaseException:
         with contextlib.suppress(Exception):
             active_journal.finish_run(
