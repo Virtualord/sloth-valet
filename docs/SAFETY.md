@@ -39,8 +39,14 @@ invariants that are implemented and tested at each phase.
   again. The default delay is two seconds and is injectable for tests. A file whose
   identity, size, or mtime changed, or whose path now traverses a symlink, is skipped
   with the `changed` reason.
-- **No network in the scanner.** The architectural test allows network-library
-  imports only in the future `ollama.py` module. No current module imports one.
+- **Content extraction is bounded and failure-safe.** Text-like formats read a
+  bounded prefix and return at most `model.text_chars` characters. PDFs use the first
+  three pages, DOCX files use paragraphs, and images or unknown binaries return only
+  metadata. Control characters are stripped. Corrupt or unreadable files produce
+  empty text with a reason; extraction never raises.
+- **No network in the scanner or extractor.** The architectural test allows
+  network-library imports only in the future `ollama.py` module. No current module
+  imports one.
 - **Model output schema and filename sanitizer are strict.** The schema rejects extra
   keys and invalid confidence values. The sanitizer rejects path separators and
   control characters, preserves the source extension, and caps names at 255 bytes.

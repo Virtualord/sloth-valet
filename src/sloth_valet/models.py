@@ -81,6 +81,41 @@ class ScanResult:
     errors: tuple[ScanError, ...]
 
 
+class ExtractionReason(StrEnum):
+    """Why a file produced no extractable text."""
+
+    EMPTY_FILE = "empty_file"
+    IMAGE = "image"
+    BINARY = "binary"
+    NO_TEXT = "no_text"
+    CORRUPT = "corrupt"
+    UNREADABLE = "unreadable"
+
+
+@dataclass(frozen=True, slots=True)
+class FileMetadata:
+    """Metadata that is safe to share with the model for every file kind."""
+
+    name: str
+    extension: str
+    size: int
+    mime_type: str
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractionResult:
+    """Bounded text plus the metadata used when no text can be extracted."""
+
+    metadata: FileMetadata
+    text: str
+    reason: ExtractionReason | None = None
+    detail: str | None = None
+
+    @property
+    def has_text(self) -> bool:
+        return bool(self.text)
+
+
 class Classification(BaseModel):
     """The only shape accepted from the local model."""
 
