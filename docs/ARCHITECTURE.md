@@ -130,7 +130,7 @@ media. `bench.py` resolves only labeled regular files inside the fixture directo
 requires their categories to be in the configured allowlist, and disables fast paths
 so every model actually classifies every fixture. It records JSON validity, category
 accuracy against the labels, confidence, latency, failures, and optional `/proc`
-`VmHWM` memory for Ollama processes. Results are written as a timestamped, exclusive
+`VmHWM` memory for the Ollama server and its model-runner processes. Results are written as a timestamped, exclusive
 JSON/Markdown pair under `bench/results/`; the benchmark never journals, plans, moves,
 or deletes files.
 

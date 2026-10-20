@@ -1,0 +1,1041 @@
+{
+  "fixture_count": 50,
+  "fixtures_dir": "bench/fixtures",
+  "host": "http://127.0.0.1:11434",
+  "labels_path": "bench/labels.json",
+  "measure_memory": true,
+  "models": [
+    {
+      "category_accuracy": 0.12,
+      "correct": 6,
+      "failures": 0,
+      "files": [
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-conference-paper.md",
+          "latency_ms": 3052.444687999923,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-graph-theory-notes.pdf",
+          "latency_ms": 808.4816440000395,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-lecture-slides-05.pdf",
+          "latency_ms": 737.4099500000284,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-reading-list.csv",
+          "latency_ms": 829.365444999894,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-research-methods.docx",
+          "latency_ms": 852.4212349998379,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-scholarship-notes.txt",
+          "latency_ms": 866.9616489999044,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-statistics-problem-set.txt",
+          "latency_ms": 789.2058699999325,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-thesis-outline.pdf",
+          "latency_ms": 769.8688469999979,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-old-project-backup.zip",
+          "latency_ms": 1216.4754170000833,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-photos-2025.tar.gz",
+          "latency_ms": 1416.2038490001123,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-source-release.zip",
+          "latency_ms": 809.1088230000878,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-website-export.zip",
+          "latency_ms": 868.967413999826,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-cover-letter.docx",
+          "latency_ms": 841.6094929998508,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-interview-questions.md",
+          "latency_ms": 921.5094180001415,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-job-offer.txt",
+          "latency_ms": 795.887601000004,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-performance-review.pdf",
+          "latency_ms": 762.6430239999991,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-resume-2026.pdf",
+          "latency_ms": 949.7135540000272,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-api-schema.json",
+          "latency_ms": 768.2079329999851,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-css-theme.css",
+          "latency_ms": 887.3378729999786,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-database-migration.sql",
+          "latency_ms": 849.8541230001138,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-deploy-script.sh",
+          "latency_ms": 862.9044439999234,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-makefile.txt",
+          "latency_ms": 721.5711439998813,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-regex-notes.md",
+          "latency_ms": 807.1053080000183,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-retry-helper.py",
+          "latency_ms": 690.7003909998366,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-bank-statement-october.pdf",
+          "latency_ms": 1201.3751129998127,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-budget-plan.csv",
+          "latency_ms": 874.5541109999522,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-credit-card-bill.csv",
+          "latency_ms": 885.5558820000624,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-insurance-renewal.docx",
+          "latency_ms": 1096.738940000023,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-invoice-1042.pdf",
+          "latency_ms": 1164.4156570000632,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-payslip-september.pdf",
+          "latency_ms": 823.1923860000734,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-rent-receipt.pdf",
+          "latency_ms": 759.6507279999969,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-tax-summary-2025.txt",
+          "latency_ms": 977.8072229998997,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-docker-desktop.deb",
+          "latency_ms": 823.2159910000973,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-driver-setup.exe",
+          "latency_ms": 704.5640329999969,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-firmware-update.iso",
+          "latency_ms": 718.5990969999239,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-python-tool.AppImage",
+          "latency_ms": 884.6592500001407,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-album-cover.jpg",
+          "latency_ms": 894.8994680001761,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-holiday-video.mp4",
+          "latency_ms": 938.0244609999409,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-interview-recording.mp3",
+          "latency_ms": 867.0426610001414,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-podcast-episode.mp3",
+          "latency_ms": 802.3567879999973,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-voice-memo.m4a",
+          "latency_ms": 862.7541939999901,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-random-notes.txt",
+          "latency_ms": 831.3980230000197,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-recipe.txt",
+          "latency_ms": 763.654084999871,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-todo.md",
+          "latency_ms": 1568.498825000006,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-unknown-download.dat",
+          "latency_ms": 936.3310189999083,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-chart-dashboard.png",
+          "latency_ms": 863.1601300000966,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-chat-thread.png",
+          "latency_ms": 990.8405070000299,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-error-dialog.png",
+          "latency_ms": 989.0913269998691,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-map-route.png",
+          "latency_ms": 791.9426720000047,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.9,
+          "correct": false,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-settings-window.png",
+          "latency_ms": 885.1942399999189,
+          "valid_json": true
+        }
+      ],
+      "mean_confidence": 0.9,
+      "mean_latency_ms": 935.5095189599888,
+      "model": "qwen2.5:0.5b",
+      "p95_latency_ms": 1416.2038490001123,
+      "peak_memory_mb": 660.6015625,
+      "total": 50,
+      "valid_json": 50,
+      "valid_json_rate": 1.0
+    },
+    {
+      "category_accuracy": 0.8,
+      "correct": 40,
+      "failures": 0,
+      "files": [
+        {
+          "category": "academic",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-conference-paper.md",
+          "latency_ms": 5943.455575999906,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-graph-theory-notes.pdf",
+          "latency_ms": 1473.930997000025,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-lecture-slides-05.pdf",
+          "latency_ms": 1354.7216949998528,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-reading-list.csv",
+          "latency_ms": 1198.7860949998321,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-research-methods.docx",
+          "latency_ms": 1179.6506249997947,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-scholarship-notes.txt",
+          "latency_ms": 1319.584649000035,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-statistics-problem-set.txt",
+          "latency_ms": 1429.5382789998712,
+          "valid_json": true
+        },
+        {
+          "category": "academic",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "academic",
+          "failure": null,
+          "file": "academic-thesis-outline.pdf",
+          "latency_ms": 1295.1641440001822,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-old-project-backup.zip",
+          "latency_ms": 1273.9645899998777,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-photos-2025.tar.gz",
+          "latency_ms": 1250.9379240000271,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-source-release.zip",
+          "latency_ms": 1187.103549000085,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "archives",
+          "failure": null,
+          "file": "archives-website-export.zip",
+          "latency_ms": 1136.8097459999262,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-cover-letter.docx",
+          "latency_ms": 1287.2352589999991,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-interview-questions.md",
+          "latency_ms": 1359.9845900000673,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-job-offer.txt",
+          "latency_ms": 1280.48109700012,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-performance-review.pdf",
+          "latency_ms": 1206.920437000008,
+          "valid_json": true
+        },
+        {
+          "category": "career",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "career",
+          "failure": null,
+          "file": "career-resume-2026.pdf",
+          "latency_ms": 1240.1047769999423,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-api-schema.json",
+          "latency_ms": 1282.657203000099,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-css-theme.css",
+          "latency_ms": 1149.1349719999562,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-database-migration.sql",
+          "latency_ms": 1256.0817230000794,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-deploy-script.sh",
+          "latency_ms": 1302.3741730000893,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-makefile.txt",
+          "latency_ms": 1204.2549979998967,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-regex-notes.md",
+          "latency_ms": 1159.0561299999536,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "code",
+          "failure": null,
+          "file": "code-retry-helper.py",
+          "latency_ms": 1226.0163959999772,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-bank-statement-october.pdf",
+          "latency_ms": 1202.5460940001267,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-budget-plan.csv",
+          "latency_ms": 1183.6412109998946,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-credit-card-bill.csv",
+          "latency_ms": 1412.3064370000975,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.9,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-insurance-renewal.docx",
+          "latency_ms": 1179.3005509998693,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-invoice-1042.pdf",
+          "latency_ms": 1315.3352619999623,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-payslip-september.pdf",
+          "latency_ms": 1489.4117250000818,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-rent-receipt.pdf",
+          "latency_ms": 1272.7052110001296,
+          "valid_json": true
+        },
+        {
+          "category": "finance",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "finance",
+          "failure": null,
+          "file": "finance-tax-summary-2025.txt",
+          "latency_ms": 1285.3486640001393,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-docker-desktop.deb",
+          "latency_ms": 1829.067987000144,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-driver-setup.exe",
+          "latency_ms": 1341.0957280000275,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-firmware-update.iso",
+          "latency_ms": 1530.2585510000881,
+          "valid_json": true
+        },
+        {
+          "category": "code",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "installers",
+          "failure": null,
+          "file": "installers-python-tool.AppImage",
+          "latency_ms": 1256.6256080001494,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-album-cover.jpg",
+          "latency_ms": 4805.8203479999975,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-holiday-video.mp4",
+          "latency_ms": 1489.0494989999752,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-interview-recording.mp3",
+          "latency_ms": 1465.9578880000481,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-podcast-episode.mp3",
+          "latency_ms": 1476.02026200002,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "media",
+          "failure": null,
+          "file": "media-voice-memo.m4a",
+          "latency_ms": 1549.4193840002026,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-random-notes.txt",
+          "latency_ms": 1425.46143200002,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-recipe.txt",
+          "latency_ms": 1456.7906099998709,
+          "valid_json": true
+        },
+        {
+          "category": "misc",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-todo.md",
+          "latency_ms": 1543.8091799999256,
+          "valid_json": true
+        },
+        {
+          "category": "media",
+          "confidence": 0.8,
+          "correct": false,
+          "expected_category": "misc",
+          "failure": null,
+          "file": "misc-unknown-download.dat",
+          "latency_ms": 1434.1174620001311,
+          "valid_json": true
+        },
+        {
+          "category": "screenshots",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-chart-dashboard.png",
+          "latency_ms": 1600.6936240000869,
+          "valid_json": true
+        },
+        {
+          "category": "screenshots",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-chat-thread.png",
+          "latency_ms": 1283.993578000036,
+          "valid_json": true
+        },
+        {
+          "category": "screenshots",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-error-dialog.png",
+          "latency_ms": 1102.478284999961,
+          "valid_json": true
+        },
+        {
+          "category": "screenshots",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-map-route.png",
+          "latency_ms": 1265.715947999979,
+          "valid_json": true
+        },
+        {
+          "category": "screenshots",
+          "confidence": 0.8,
+          "correct": true,
+          "expected_category": "screenshots",
+          "failure": null,
+          "file": "screenshots-settings-window.png",
+          "latency_ms": 1282.1190930001194,
+          "valid_json": true
+        }
+      ],
+      "mean_confidence": 0.8160000000000001,
+      "mean_latency_ms": 1489.5407849200137,
+      "model": "llama3.2:1b",
+      "p95_latency_ms": 1829.067987000144,
+      "peak_memory_mb": 788.45703125,
+      "total": 50,
+      "valid_json": 50,
+      "valid_json_rate": 1.0
+    }
+  ],
+  "schema_version": 1,
+  "started_at": "2026-10-20T19:43:41.030538+00:00"
+}

@@ -190,6 +190,36 @@ results. Pull at least two models, run the benchmark on the machine you actually
 review the files, and commit only authentic output. The repository intentionally does
 not ship made-up model names or numbers.
 
+An authentic CPU-only run is committed in
+[`bench/results/`](bench/results/README.md). On the 50 fixtures:
+
+| Model | Valid JSON | Category accuracy | Mean latency | Peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| `qwen2.5:0.5b` | 100.0% | 12.0% | 935.5 ms | 660.6 MiB |
+| `llama3.2:1b` | 100.0% | 80.0% | 1489.5 ms | 788.5 MiB |
+
+This is one run on one CPU-only machine, not an endorsement. The gap is the point:
+small models can produce perfectly valid JSON and still choose the wrong category.
+
+## Demo
+
+For a safe, self-contained workflow that never touches a real Downloads folder:
+
+```sh
+./scripts/demo.sh <model-name>
+```
+
+The script generates fixtures in a fresh temporary directory, creates a config, then
+runs scan, dry-run, apply, report, a second apply, and undo. It leaves the demo
+directory in place for inspection and never deletes a user file.
+
+A terminal recording of the verified `llama3.2:1b` run is committed at
+[`docs/demo.cast`](docs/demo.cast):
+
+```sh
+uvx --from asciinema asciinema play docs/demo.cast
+```
+
 ## Configuration
 
 The CLI reads `$SLOTH_VALET_CONFIG` when set, otherwise
@@ -260,8 +290,9 @@ The authoritative stage and trust-boundary description is in
 - Reports and the journal are local files and are not encrypted.
 - The benchmark uses synthetic fixtures. It measures behavior on a reproducible sample,
   not your entire real folder.
-- The optional memory figure is host-wide `VmHWM` for processes named `ollama*`, not a
-  per-model allocator measurement.
+- The optional memory figure is a best-effort sum of Linux `VmHWM` for the Ollama
+  server and its Ollama-spawned runner processes, not a per-model allocator
+  measurement.
 
 Every classifier failure is explicit. If the model is unavailable, slow, malformed, or
 uncertain, the file stays put or goes to review.
@@ -299,8 +330,8 @@ src/sloth_valet/   config, scanner, extraction, classifier, planner, journal,
                    applier, runner, report, systemd, fixtures, benchmark, CLI
 tests/             unit, safety, end-to-end, CLI, benchmark, and boundary tests
 bench/             committed labels and results; generated fixtures are ignored
-docs/              architecture and safety notes
-scripts/           deterministic fixture generator
+docs/              architecture, safety, and the terminal demo recording
+scripts/           deterministic fixture generator and safe end-to-end demo
 ```
 
 ## Uninstall
