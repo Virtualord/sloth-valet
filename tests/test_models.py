@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from sloth_valet.models import (
+    MAX_FILENAME_CHARS,
     Classification,
     ClassificationError,
     FileCandidate,
@@ -15,6 +16,7 @@ from sloth_valet.models import (
     PlannedMove,
     parse_classification_json,
     sanitize_filename,
+    sanitize_subfolder,
 )
 
 VALID_CLASSIFICATION = """
@@ -104,16 +106,19 @@ def test_pipeline_domain_models_compose() -> None:
 @pytest.mark.parametrize(
     ("raw", "original", "expected"),
     [
-        ("January Statement.pdf", "statement.pdf", "January Statement.pdf"),
-        ("  spaced-out name  .pdf ", "x.pdf", "spaced-out name.pdf"),
+        ("January Statement.pdf", "statement.pdf", "january-statement.pdf"),
+        ("  spaced-out name  .pdf ", "x.pdf", "spaced-out-name.pdf"),
         ("report", "scan.pdf", "report.pdf"),
-        ("report.txt", "scan.pdf", "report.txt.pdf"),
-        ("REPORT.PDF", "scan.pdf", "REPORT.PDF"),
+        ("report.txt", "scan.pdf", "report.pdf"),
+        ("REPORT.PDF", "scan.pdf", "report.pdf"),
         (".hidden", "notes.pdf", "hidden.pdf"),
-        ("a:b?.pdf", "scan.pdf", "a_b_.pdf"),
-        (FULLWIDTH_QUARTERLY, "scan.pdf", "Quarterly.pdf"),
-        ("a\u200bb.pdf", "scan.pdf", "a_b.pdf"),
+        ("a:b?.pdf", "scan.pdf", "a-b.pdf"),
+        (FULLWIDTH_QUARTERLY, "scan.pdf", "quarterly.pdf"),
+        ("a\u200bb.pdf", "scan.pdf", "ab.pdf"),
         ("notes", "README", "notes"),
+        ("../../etc/passwd", "scan.pdf", "etc-passwd.pdf"),
+        ("sub\\file.txt", "scan.pdf", "sub-file.pdf"),
+        ("bad\x00name.pdf", "scan.pdf", "bad-name.pdf"),
     ],
 )
 def test_filename_sanitization(raw: str, original: str, expected: str) -> None:
@@ -127,12 +132,8 @@ def test_filename_sanitization(raw: str, original: str, expected: str) -> None:
         "   ",
         ".",
         "..",
-        "../escape.pdf",
-        "sub/file.pdf",
-        "sub\\file.pdf",
-        "bad\x00name.pdf",
-        "bad\nname.pdf",
         "...",
+        ".pdf",
     ],
 )
 def test_unsafe_filenames_are_rejected(raw: str) -> None:
@@ -140,9 +141,27 @@ def test_unsafe_filenames_are_rejected(raw: str) -> None:
         sanitize_filename(raw, "original.pdf")
 
 
+def test_sanitized_filename_has_no_path_or_hidden_prefix() -> None:
+    safe = sanitize_filename("../../.config/passwd", "original.pdf")
+
+    assert safe == "config-passwd.pdf"
+    assert "/" not in safe
+    assert "\\" not in safe
+    assert not safe.startswith(".")
+
+
+def test_sanitized_subfolder_is_one_safe_component() -> None:
+    assert sanitize_subfolder("") == ""
+    assert sanitize_subfolder("Statements/2026") == "statements-2026"
+    assert sanitize_subfolder("../../etc") == "etc"
+    assert sanitize_subfolder("...") == ""
+    assert len(sanitize_subfolder("x" * 100)) == 60
+
+
 def test_long_filename_is_capped_and_keeps_its_extension() -> None:
     safe = sanitize_filename("x" * 400, "original.pdf")
 
-    assert len(safe.encode("utf-8")) <= 255
+    assert len(safe) <= MAX_FILENAME_CHARS
+    assert len(safe) == MAX_FILENAME_CHARS
     assert safe.endswith(".pdf")
     assert safe.startswith("x")

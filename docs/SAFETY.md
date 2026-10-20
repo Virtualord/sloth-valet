@@ -44,13 +44,35 @@ invariants that are implemented and tested at each phase.
   three pages, DOCX files use paragraphs, and images or unknown binaries return only
   metadata. Control characters are stripped. Corrupt or unreadable files produce
   empty text with a reason; extraction never raises.
-- **No network in the scanner or extractor.** The architectural test allows
-  network-library imports only in the future `ollama.py` module. No current module
-  imports one.
-- **Model output schema and filename sanitizer are strict.** The schema rejects extra
-  keys and invalid confidence values. The sanitizer rejects path separators and
-  control characters, preserves the source extension, and caps names at 255 bytes.
-  These are foundation pieces; they are not invoked by the read-only scan command.
+- **Only one module can speak HTTP.** An architectural test parses every package
+  module and allows network-library imports only in `ollama.py`. That client uses the
+  configured host as its base URL, follows no redirects, ignores proxy environment
+  variables, and has only two operations: `GET /api/tags` and `POST /api/chat`. A
+  behavioral test records every request URL and proves they all target the configured
+  scheme/host/port. CI uses `httpx.MockTransport`, and the live Ollama test is opt-in.
+- **Model output is untrusted and strictly shaped.** The Pydantic schema forbids extra
+  keys and validates confidence. Output over 64 KiB, invalid JSON, or any schema
+  mismatch is a failure. The category must exactly match the configured allowlist.
+- **Filenames and subfolders are sanitized.** Model-proposed names are NFKC-normalized,
+  stripped of any proposed extension, lowercased and slugified, reduced to one path
+  component, denied leading dots, and given the original source extension. The total
+  filename is capped at 80 characters; a subfolder is one safe component capped at 60.
+  Path separators, traversal text, control characters, shell syntax, and hidden-file
+  prefixes cannot survive. The filename sanitizer is deterministic and is never
+  bypassed for model output.
+- **File content is data, not instructions.** The classifier prompt states this
+  explicitly, places the allowlist and examples outside the content fence, fences the
+  untrusted text with markers, and neutralizes those markers if they occur inside the
+  file. Prompt injection can still fool a small model into a wrong but allowlisted
+  category; the allowlist, sanitizer, confidence threshold, review routing, and undo
+  are the containment boundary.
+- **Fast paths still obey the allowlist.** Extension mappings are configuration, their
+  target categories must be allowed, and they skip the health check and model call.
+  They produce a deterministic sanitized filename with confidence 1.0.
+- **Every classifier failure is explicit.** An unavailable model, timeout, HTTP error,
+  malformed response, invalid JSON, category outside the allowlist, unusable filename,
+  or confidence below `model.min_confidence` returns a failure reason. It is never
+  converted into a made-up category or name.
 - **Category names are constrained.** Category config values are lowercase path-safe
   slugs, so an allowlisted category cannot introduce a path separator.
 - **Dry-run is the default.** `dry_run = true` is the config default. The current
@@ -58,15 +80,11 @@ invariants that are implemented and tested at each phase.
 
 ## Deferred guarantees
 
-The following are specified and will be implemented in later phases. They are listed
-here so the safety plan is visible rather than implied:
+The following are specified and will be implemented in later phases:
 
-- collision-safe, non-overwriting moves and a pending/done move journal (Phase 3);
-- path and fingerprint revalidation immediately before apply and undo (Phase 3);
-- allowlist enforcement and confidence routing for model decisions (Phase 4);
-- a behavioral network test using an injected HTTP transport to prove that requests
-  can only reach the configured Ollama host (Phase 4);
-- review routing and unattended reports (Phase 5).
+- collision-safe, non-overwriting moves and a pending/done move journal;
+- path and fingerprint revalidation immediately before apply and undo;
+- review routing for classifier failures and unattended Markdown reports.
 
 ## Reporting a safety issue
 
