@@ -11,7 +11,7 @@ from pathlib import Path
 
 from sloth_valet.config import ValetConfig, WatchConfig
 from sloth_valet.models import (
-    Candidate,
+    FileCandidate,
     ScanError,
     ScanResult,
     SkippedPath,
@@ -40,7 +40,7 @@ class Scanner:
         )
 
     def scan(self) -> ScanResult:
-        candidates: list[Candidate] = []
+        candidates: list[FileCandidate] = []
         skipped: list[SkippedPath] = []
         errors: list[ScanError] = []
         seen_sources: set[Path] = set()
@@ -61,8 +61,8 @@ class Scanner:
         self,
         watch: WatchConfig,
         seen_sources: set[Path],
-    ) -> tuple[list[Candidate], list[SkippedPath], list[ScanError]]:
-        candidates: list[Candidate] = []
+    ) -> tuple[list[FileCandidate], list[SkippedPath], list[ScanError]]:
+        candidates: list[FileCandidate] = []
         skipped: list[SkippedPath] = []
         errors: list[ScanError] = []
 
@@ -140,7 +140,7 @@ class Scanner:
         watch_root: Path,
         watch: WatchConfig,
         seen_sources: set[Path],
-    ) -> tuple[Candidate | None, SkippedPath | None]:
+    ) -> tuple[FileCandidate | None, SkippedPath | None]:
         relative = path.relative_to(watch_root)
         if is_partial_download(path):
             return None, SkippedPath(path, SkipReason.PARTIAL_DOWNLOAD)
@@ -172,7 +172,7 @@ class Scanner:
         if self._is_inside_destination(resolved):
             return None, SkippedPath(path, SkipReason.INSIDE_DESTINATION)
 
-        fingerprint = Candidate(
+        fingerprint = FileCandidate(
             source=resolved,
             watch_root=watch_root,
             destination_root=watch.destination_root,

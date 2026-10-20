@@ -7,6 +7,7 @@ from conftest import make_file, write_config
 from typer.testing import CliRunner
 
 from sloth_valet.cli import app
+from sloth_valet.config import example_config_text
 
 runner = CliRunner()
 
@@ -64,3 +65,44 @@ def test_version_option_needs_no_subcommand() -> None:
 
     assert result.exit_code == 0
     assert result.output.strip() == "valet 0.1.0"
+
+
+def test_config_init_writes_example_and_refuses_overwrite(tmp_path: Path) -> None:
+    target = tmp_path / "new" / "valet.toml"
+
+    first = runner.invoke(app, ["--config", str(target), "config", "init"])
+
+    assert first.exit_code == 0, first.output
+    assert target.read_text(encoding="utf-8") == example_config_text()
+    assert str(target) in first.output
+
+    target.write_text("sentinel\n", encoding="utf-8")
+    second = runner.invoke(app, ["--config", str(target), "config", "init"])
+
+    assert second.exit_code == 1
+    assert target.read_text(encoding="utf-8") == "sentinel\n"
+
+
+def test_config_show_prints_effective_config(tmp_path: Path) -> None:
+    paths = write_config(tmp_path)
+
+    result = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "config", "show"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["general"]["dry_run"] is True
+    assert payload["watch"][0]["path"] == str(paths.watch)
+    assert payload["watch"][0]["destination_root"] == str(paths.destination)
+    assert payload["general"]["reports_dir"] == str(paths.reports_dir)
+
+
+def test_config_show_rejects_invalid_config(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid.toml"
+    invalid.write_text("[general\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["--config", str(invalid), "config", "show"])
+
+    assert result.exit_code == 2

@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 import re
 import tomllib
+from importlib import resources
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import (
@@ -20,7 +21,7 @@ from pydantic import (
 )
 
 CATEGORY_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,59}$")
-PARTIAL_SUFFIXES = (".part", ".crdownload", ".tmp")
+EXAMPLE_CONFIG_NAME = "valet.example.toml"
 
 
 class ConfigError(ValueError):
@@ -28,14 +29,17 @@ class ConfigError(ValueError):
 
 
 def default_config_path() -> Path:
-    """Return the configured default, or the XDG config path."""
+    """Return the override or the default ~/.config/sloth-valet/valet.toml."""
     override = os.environ.get("SLOTH_VALET_CONFIG")
     if override:
         return Path(override).expanduser()
+    return Path.home() / ".config" / "sloth-valet" / "valet.toml"
 
-    xdg_home = os.environ.get("XDG_CONFIG_HOME")
-    base = Path(xdg_home).expanduser() if xdg_home else Path.home() / ".config"
-    return base / "sloth-valet" / "config.toml"
+
+def example_config_text() -> str:
+    """Load the packaged example written by ``valet config init``."""
+    resource = resources.files("sloth_valet").joinpath(EXAMPLE_CONFIG_NAME)
+    return resource.read_text(encoding="utf-8")
 
 
 class _ConfigModel(BaseModel):
@@ -53,7 +57,12 @@ def _base_directory(info: ValidationInfo) -> Path:
 def _absolute_config_path(value: Any, info: ValidationInfo) -> Path:
     if isinstance(value, str) and not value.strip():
         raise ValueError("path cannot be empty")
-    candidate = Path(value).expanduser()
+    try:
+        candidate = Path(value).expanduser()
+    except (TypeError, ValueError) as exc:
+        raise ValueError("path must be a string") from exc
+    if "\x00" in str(candidate):
+        raise ValueError("path must not contain NUL")
     if not candidate.is_absolute():
         candidate = _base_directory(info) / candidate
     return Path(os.path.abspath(candidate))
@@ -64,10 +73,8 @@ class GeneralConfig(_ConfigModel):
     settle_minutes: int = Field(default=30, ge=0)
     review_folder: str = "_review"
     reports_dir: Path = Path("~/.local/share/sloth-valet/reports")
-    journal_path: Path = Path("~/.local/share/sloth-valet/journal.db")
-    on_uncertain: Literal["leave", "review"] = "leave"
 
-    @field_validator("reports_dir", "journal_path", mode="before")
+    @field_validator("reports_dir", mode="before")
     @classmethod
     def resolve_state_path(cls, value: Any, info: ValidationInfo) -> Path:
         return _absolute_config_path(value, info)
@@ -223,7 +230,25 @@ class ValetConfig(_ConfigModel):
         if len(paths) != len(set(paths)):
             raise ValueError("watch paths must be unique")
 
+        for watch in self.watch:
+            watch_root = _resolve_for_nesting(watch.path)
+            for destination_owner in self.watch:
+                destination = _resolve_for_nesting(destination_owner.destination_root)
+                if destination == watch_root or destination.is_relative_to(watch_root):
+                    raise ValueError(
+                        f"destination root {destination_owner.destination_root} is inside "
+                        f"watch root {watch.path}"
+                    )
+
         return self
+
+
+def _resolve_for_nesting(path: Path) -> Path:
+    """Resolve symlinks for overlap checks while allowing roots to not exist yet."""
+    try:
+        return path.resolve(strict=False)
+    except (OSError, RuntimeError):
+        return Path(os.path.abspath(path))
 
 
 def load_config(path: Path) -> ValetConfig:

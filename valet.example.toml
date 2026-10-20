@@ -1,6 +1,6 @@
-# Valet configuration example.
+# Sloth Valet configuration.
 #
-# Copy to ~/.config/sloth-valet/config.toml (or pass --config).
+# Written by `valet config init` at ~/.config/sloth-valet/valet.toml by default.
 # Relative paths are resolved against this file's directory.
 
 [general]
@@ -8,9 +8,6 @@ dry_run = true
 settle_minutes = 30
 review_folder = "_review"
 reports_dir = "~/.local/share/sloth-valet/reports"
-journal_path = "~/.local/share/sloth-valet/journal.db"
-# "leave" keeps an uncertain file where it is. "review" moves it to _review/.
-on_uncertain = "leave"
 
 [model]
 host = "http://localhost:11434"
@@ -31,19 +28,9 @@ paths = ["~/.ssh", "~/.config", "~/.gnupg"]
 globs = ["*.part", "*.crdownload", "*.tmp", ".*"]
 
 [categories]
-allowed = [
-  "academic",
-  "career",
-  "finance",
-  "installers",
-  "archives",
-  "screenshots",
-  "code",
-  "media",
-  "misc",
-]
+allowed = ["academic", "career", "finance", "installers", "archives", "screenshots", "code", "media", "misc"]
 
 [fast_path]
 ".deb" = "installers"
 ".iso" = "installers"
-".appimage" = "installers"
+".AppImage" = "installers"

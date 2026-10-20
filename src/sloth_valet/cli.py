@@ -11,7 +11,13 @@ from typing import Annotated
 import typer
 
 from sloth_valet import __version__
-from sloth_valet.config import ConfigError, ValetConfig, default_config_path, load_config
+from sloth_valet.config import (
+    ConfigError,
+    ValetConfig,
+    default_config_path,
+    example_config_text,
+    load_config,
+)
 from sloth_valet.scanner import Scanner
 
 app = typer.Typer(
@@ -20,6 +26,12 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
 )
+config_app = typer.Typer(
+    name="config",
+    help="Create or inspect the Sloth Valet configuration.",
+    no_args_is_help=True,
+)
+app.add_typer(config_app, name="config")
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +53,8 @@ def main(
         typer.Option(
             "--config",
             "-c",
-            help="TOML config file. Defaults to $SLOTH_VALET_CONFIG or the XDG config path.",
+            help="TOML config file. Defaults to $SLOTH_VALET_CONFIG or "
+            "~/.config/sloth-valet/valet.toml.",
             dir_okay=False,
             resolve_path=True,
         ),
@@ -51,9 +64,17 @@ def main(
         typer.Option("--version", callback=_version_callback, is_eager=True),
     ] = False,
 ) -> None:
-    """Load configuration and dispatch one valet command."""
+    """Set the config path and dispatch one valet command."""
     del version
     ctx.obj = CliState(config_path=config or default_config_path())
+
+
+def _state_or_exit(ctx: typer.Context) -> CliState:
+    state = ctx.obj
+    if not isinstance(state, CliState):
+        typer.echo("internal error: command state is missing", err=True)
+        raise typer.Exit(code=2)
+    return state
 
 
 def _load_or_exit(state: CliState) -> ValetConfig:
@@ -73,6 +94,40 @@ def _format_size(size: int) -> str:
     return f"{size} B"
 
 
+@config_app.command("init")
+def config_init(ctx: typer.Context) -> None:
+    """Write the example config, refusing to overwrite an existing file."""
+    state = _state_or_exit(ctx)
+    target = state.config_path
+    try:
+        example = example_config_text()
+    except OSError as exc:
+        typer.echo(f"Could not read the bundled example config: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("x", encoding="utf-8") as config_file:
+            config_file.write(example)
+    except FileExistsError as exc:
+        typer.echo(f"Config already exists, refusing to overwrite: {target}", err=True)
+        raise typer.Exit(code=1) from exc
+    except OSError as exc:
+        typer.echo(f"Could not write config {target}: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Wrote {target}")
+    typer.echo("Edit the watch roots, destination, and model name before running.")
+
+
+@config_app.command("show")
+def config_show(ctx: typer.Context) -> None:
+    """Print the fully resolved effective configuration as JSON."""
+    state = _state_or_exit(ctx)
+    config = _load_or_exit(state)
+    typer.echo(json.dumps(config.model_dump(mode="json"), indent=2, sort_keys=True))
+
+
 @app.command()
 def scan(
     ctx: typer.Context,
@@ -82,10 +137,7 @@ def scan(
     ] = False,
 ) -> None:
     """List settled candidates without moving or reading them."""
-    state = ctx.obj
-    if not isinstance(state, CliState):
-        typer.echo("internal error: command state is missing", err=True)
-        raise typer.Exit(code=2)
+    state = _state_or_exit(ctx)
     config = _load_or_exit(state)
     result = Scanner(config).scan()
 

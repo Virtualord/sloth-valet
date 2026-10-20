@@ -3,8 +3,14 @@
 Sloth Valet is designed to be boring when it fails. This document tracks the safety
 invariants that are implemented and tested at each phase.
 
-## Current guarantees (Phase 1)
+## Current guarantees
 
+- **Configuration is validated before use.** Missing required keys, unknown keys,
+  invalid category names, invalid model URLs, bad paths, and unsafe review-folder
+  names fail closed. Relative paths resolve against the config file and `~` expands.
+- **Destination roots cannot sit inside watch roots.** Config loading compares every
+  destination root with every watch root, including through symlinks. The scanner also
+  never considers files already inside a configured destination root.
 - **Root confinement.** Only direct children of a watch root are considered unless
   `recursive = true`. A candidate is resolved and must still be inside the resolved
   watch root. The scanner never reads file contents.
@@ -18,8 +24,6 @@ invariants that are implemented and tested at each phase.
   before any extraction or model call. Ignore patterns match the file name, relative
   path, any path component, or absolute path. Protected directories are pruned
   without being traversed.
-- **Destination trees are excluded.** Files inside any configured destination root
-  are never candidates, including when a destination is nested inside a watch root.
 - **Incomplete and unsettled files wait.** Names ending in `.part`, `.crdownload`, or
   `.tmp` are always skipped. Files modified within `settle_minutes` are skipped.
 - **Two checks.** The scanner compares size, mtime, device, and inode from the
@@ -40,12 +44,12 @@ invariants that are implemented and tested at each phase.
 The following are specified and will be implemented in later phases. They are listed
 here so the safety plan is visible rather than implied:
 
-- collision-safe, non-overwriting moves and a pending/done move journal (Phase 2);
-- path and fingerprint revalidation immediately before apply and undo (Phase 2);
-- allowlist enforcement and confidence routing for model decisions (Phase 3);
+- collision-safe, non-overwriting moves and a pending/done move journal (Phase 3);
+- path and fingerprint revalidation immediately before apply and undo (Phase 3);
+- allowlist enforcement and confidence routing for model decisions (Phase 4);
 - a behavioral network test using an injected HTTP transport to prove that requests
-  can only reach the configured Ollama host (Phase 3);
-- review routing and unattended reports (Phase 4).
+  can only reach the configured Ollama host (Phase 4);
+- review routing and unattended reports (Phase 5).
 
 ## Reporting a safety issue
 

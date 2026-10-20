@@ -6,12 +6,13 @@ import os
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-MAX_DECISION_BYTES = 64 * 1024
+MAX_CLASSIFICATION_BYTES = 64 * 1024
 MAX_FILENAME_BYTES = 255
 _EXTENSION_PATTERN = re.compile(r"^\.[A-Za-z0-9][A-Za-z0-9._-]{0,20}$")
 _UNSAFE_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
@@ -35,7 +36,7 @@ class SkipReason(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class Candidate:
+class FileCandidate:
     """A settled regular file that passed every pre-model safety check."""
 
     source: Path
@@ -75,38 +76,73 @@ class ScanError:
 
 @dataclass(frozen=True, slots=True)
 class ScanResult:
-    candidates: tuple[Candidate, ...]
+    candidates: tuple[FileCandidate, ...]
     skipped: tuple[SkippedPath, ...]
     errors: tuple[ScanError, ...]
 
 
-class ModelDecision(BaseModel):
+class Classification(BaseModel):
     """The only shape accepted from the local model."""
 
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
     category: str = Field(min_length=1, max_length=60)
-    filename: str = Field(min_length=1, max_length=512)
+    subfolder: str = Field(max_length=100)
+    new_name: str = Field(min_length=1, max_length=512)
     confidence: float = Field(ge=0, le=1, allow_inf_nan=False)
-    reason: str = Field(default="", max_length=500)
+    reason: str = Field(max_length=500)
 
 
-class DecisionError(ValueError):
-    """Raised when model output is not a valid decision."""
+@dataclass(frozen=True, slots=True)
+class PlannedMove:
+    """A validated candidate paired with its intended destination."""
+
+    candidate: FileCandidate
+    classification: Classification
+    destination: Path
+
+    @property
+    def source(self) -> Path:
+        return self.candidate.source
+
+
+class MoveStatus(StrEnum):
+    PENDING = "pending"
+    DONE = "done"
+    REVERTED = "reverted"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class MoveRecord:
+    """One journaled move, pending before the operation and done afterwards."""
+
+    source: Path
+    destination: Path
+    status: MoveStatus
+    created_at: datetime
+    completed_at: datetime | None = None
+    id: int | None = None
+
+
+class ClassificationError(ValueError):
+    """Raised when model output is not a valid classification."""
 
 
 class FilenameError(ValueError):
     """Raised when model output cannot be reduced to a safe filename."""
 
 
-def parse_decision_json(payload: str) -> ModelDecision:
-    """Parse exactly one JSON decision without attempting to repair model output."""
-    if len(payload.encode("utf-8")) > MAX_DECISION_BYTES:
-        raise DecisionError("model output exceeds the decision size limit")
+def parse_classification_json(payload: str) -> Classification:
+    """Parse exactly one JSON classification without repairing model output."""
+    if len(payload.encode("utf-8")) > MAX_CLASSIFICATION_BYTES:
+        raise ClassificationError("model output exceeds the classification size limit")
     try:
-        return ModelDecision.model_validate_json(payload)
+        return Classification.model_validate_json(payload)
     except ValidationError as exc:
-        raise DecisionError("model output does not match the decision schema") from exc
+        raise ClassificationError(
+            "model output does not match the classification schema"
+        ) from exc
 
 
 def _truncate_utf8(value: str, max_bytes: int) -> str:
