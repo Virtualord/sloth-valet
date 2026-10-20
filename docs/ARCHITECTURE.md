@@ -21,9 +21,12 @@ filesystem. Each candidate carries a fingerprint of size, mtime, device, and ino
 later stages can prove they are still looking at the same file.
 
 The scanner enforces root confinement, symlink refusal, protected paths, ignore
-globs, destination exclusion, partial-download suffixes, settle time, and a
-double-stat check. Config loading separately rejects any destination root that sits
-inside a watch root. `docs/SAFETY.md` records the exact guarantees.
+globs, partial-download suffixes, settle time, a configurable size cap, and a delayed
+double-stat check. It records a skip reason for every skipped file and directory.
+The stability delay defaults to two seconds, happens once per scan after all
+provisional candidates are known, and is injectable for tests. Config loading
+separately rejects any destination root that sits inside a watch root.
+`docs/SAFETY.md` records the exact guarantees.
 
 ## Modules
 

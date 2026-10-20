@@ -71,6 +71,7 @@ def _absolute_config_path(value: Any, info: ValidationInfo) -> Path:
 class GeneralConfig(_ConfigModel):
     dry_run: bool = True
     settle_minutes: int = Field(default=30, ge=0)
+    max_file_size_mb: int = Field(default=100, ge=1)
     review_folder: str = "_review"
     reports_dir: Path = Path("~/.local/share/sloth-valet/reports")
 

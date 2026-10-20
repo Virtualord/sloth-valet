@@ -41,6 +41,7 @@ def test_load_config_resolves_absolute_paths_and_fast_path(tmp_path: Path) -> No
     config = paths.load()
 
     assert config.general.dry_run is True
+    assert config.general.max_file_size_mb == 100
     assert config.watch[0].path == paths.watch
     assert config.watch[0].destination_root == paths.destination
     assert config.watch[0].recursive is True
@@ -108,6 +109,13 @@ def test_invalid_review_folder_is_rejected(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ConfigError, match="review_folder"):
+        paths.load()
+
+
+def test_non_positive_file_size_cap_is_rejected(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, max_file_size_mb=0)
+
+    with pytest.raises(ConfigError, match="max_file_size_mb"):
         paths.load()
 
 
@@ -300,5 +308,6 @@ def test_shipped_example_matches_package_and_loads() -> None:
     config = load_config(example_path)
 
     assert config.model.name == "set-me-after-checking-ollama-list"
+    assert config.general.max_file_size_mb == 100
     assert config.fast_path[".appimage"] == "installers"
     assert config.watch[0].path == Path.home() / "Downloads"

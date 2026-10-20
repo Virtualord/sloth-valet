@@ -9,11 +9,16 @@ invariants that are implemented and tested at each phase.
   invalid category names, invalid model URLs, bad paths, and unsafe review-folder
   names fail closed. Relative paths resolve against the config file and `~` expands.
 - **Destination roots cannot sit inside watch roots.** Config loading compares every
-  destination root with every watch root, including through symlinks. The scanner also
-  never considers files already inside a configured destination root.
+  destination root with every watch root, including through symlinks, and refuses any
+  overlap that would let a scan see its own output tree.
 - **Root confinement.** Only direct children of a watch root are considered unless
   `recursive = true`. A candidate is resolved and must still be inside the resolved
   watch root. The scanner never reads file contents.
+- **Fixed gate order.** For each entry the scanner applies protected paths, ignore
+  globs (including built-in partial-download suffixes), symlink refusal, settle time,
+  the file-size cap, and finally the stability check. Every skipped file or directory
+  produces a `SkippedPath` with a stable reason for reports. Ordinary subdirectories
+  are simply not visited when `recursive = false`.
 - **Symlinks are refused.** Symlinked files are skipped, symlinked directories are
   not traversed, and a symlinked watch root is rejected. Directories are opened with
   `O_NOFOLLOW` and their inode must match the discovered path. Any candidate whose
@@ -21,13 +26,19 @@ invariants that are implemented and tested at each phase.
 - **Regular files only.** Directories, sockets, FIFOs, devices, and other special
   files are not candidates.
 - **Protected paths and ignore globs come first.** Both are checked during scanning,
-  before any extraction or model call. Ignore patterns match the file name, relative
-  path, any path component, or absolute path. Protected directories are pruned
-  without being traversed.
+  before content access, extraction, or any model call. Ignore patterns match the
+  file name, relative path, any path component, or absolute path. Protected
+  directories are pruned without being traversed.
 - **Incomplete and unsettled files wait.** Names ending in `.part`, `.crdownload`, or
   `.tmp` are always skipped. Files modified within `settle_minutes` are skipped.
-- **Two checks.** The scanner compares size, mtime, device, and inode from the
-  directory listing and a fresh `lstat`. A change means the file is skipped.
+- **The size cap is enforced before stability.** Files larger than
+  `general.max_file_size_mb` (default `100`) are skipped with the `too_large` reason
+  after the settle check and before the stability delay.
+- **Two delayed reads.** The scanner fingerprints size, mtime, device, and inode from
+  the directory listing, waits once for all provisional candidates, then reads them
+  again. The default delay is two seconds and is injectable for tests. A file whose
+  identity, size, or mtime changed, or whose path now traverses a symlink, is skipped
+  with the `changed` reason.
 - **No network in the scanner.** The architectural test allows network-library
   imports only in the future `ollama.py` module. No current module imports one.
 - **Model output schema and filename sanitizer are strict.** The schema rejects extra

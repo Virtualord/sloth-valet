@@ -28,9 +28,9 @@ class SkipReason(StrEnum):
     IGNORED = "ignored"
     PARTIAL_DOWNLOAD = "partial_download"
     UNSETTLED = "unsettled"
+    TOO_LARGE = "too_large"
     CHANGED = "changed"
     OUTSIDE_WATCH = "outside_watch"
-    INSIDE_DESTINATION = "inside_destination"
     DUPLICATE = "duplicate"
     UNREADABLE = "unreadable"
 

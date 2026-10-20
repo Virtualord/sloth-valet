@@ -42,8 +42,9 @@ uv run valet scan
 
 `valet config init` writes the bundled example and refuses to overwrite an existing
 file. `valet config show` prints the fully resolved effective config as JSON.
-`valet scan` is read-only: it lists files that are old enough, not ignored, not
-protected, and not partial downloads. It does not open them or call the model.
+`valet scan` is read-only: it lists files that are old enough, under the size cap,
+not ignored, not protected, not partial downloads, and stable across two reads. It
+does not open them or call the model.
 
 ## Configuration
 
@@ -57,6 +58,10 @@ uv run valet --config ./valet.toml config init
 Relative paths in a config are resolved against that config file's directory.
 `~` is expanded. A destination root inside any watch root is rejected at load time.
 Symlinked watch roots and filesystem symlinks are refused by the scanner.
+
+A scan applies protected paths, ignore globs, symlink refusal, `settle_minutes`,
+the `max_file_size_mb` cap (default `100`), and a two-read stability check. The
+default scan waits two seconds between those reads for the whole candidate batch.
 
 The model name has no default. Read an installed name from `ollama list` and put it
 in the config; Sloth Valet never invents one.
