@@ -82,8 +82,15 @@ allowed = ["academic", "career", "finance", "installers", "archives", "screensho
 
 ## Phase plan
 
-1. **Foundation and scanner safety** - package scaffold, validated config, domain models, read-only scanner, tests, CI.
-2. **Journal and safe moves** - SQLite pending/done journal, collision-safe moves, planner, undo, crash recovery.
-3. **Extraction and classification** - text extraction, Ollama client, strict schema validation, filename sanitization, confidence handling, fast path.
-4. **Orchestration and reporting** - plain-code run loop, dry-run/apply CLI, review routing, Markdown reports, end-to-end safety and idempotence tests.
-5. **Operations and polish** - systemd units, benchmark harness, fixtures, installer, complete docs, release `v0.1.0`.
+1. **Config and domain models** - validated TOML, shipped example, config init/show,
+   and the domain records used by later stages.
+2. **Scanner and safety gates** - read-only candidate discovery and pre-model safety
+   filters.
+3. **Journal and safe moves** - SQLite pending/done journal, collision-safe moves,
+   planner, undo, crash recovery.
+4. **Extraction and classification** - text extraction, Ollama client, strict schema
+   validation, filename sanitization, confidence handling, fast path.
+5. **Orchestration and reporting** - plain-code run loop, dry-run/apply CLI, review
+   routing, Markdown reports, end-to-end safety and idempotence tests.
+6. **Operations and polish** - systemd units, benchmark harness, fixtures, installer,
+   complete docs, release `v0.1.0`.

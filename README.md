@@ -6,8 +6,8 @@ Sloth Valet waits for files to settle, asks a small local open-weight model for 
 category and clean name, and moves them into a tidy destination tree. It runs
 offline, journals every move, and never guesses when the model is unsure.
 
-**Status:** Phase 1 of 5. The read-only scanner is implemented. Moving, journaling,
-classification, and reports are landing in the following phases.
+**Status:** config loading, domain models, and a read-only scanner are implemented.
+Moving, journaling, classification, and reports are landing in the following phases.
 
 ## Why this shape
 
@@ -30,35 +30,36 @@ cd sloth-valet
 uv sync
 ```
 
-Copy the example config and edit the watch roots, destination, protected paths, and
-model name:
+Create the config, then edit the watch roots, destination, protected paths, and model
+name:
 
 ```sh
-mkdir -p ~/.config/sloth-valet
-cp valet.example.toml ~/.config/sloth-valet/config.toml
-uv run valet --config ~/.config/sloth-valet/config.toml scan
+uv run valet config init
+$EDITOR ~/.config/sloth-valet/valet.toml
+uv run valet config show
+uv run valet scan
 ```
 
-`valet scan` is read-only. It lists files that are old enough, not ignored, not
+`valet config init` writes the bundled example and refuses to overwrite an existing
+file. `valet config show` prints the fully resolved effective config as JSON.
+`valet scan` is read-only: it lists files that are old enough, not ignored, not
 protected, and not partial downloads. It does not open them or call the model.
 
 ## Configuration
 
-The CLI uses `$SLOTH_VALET_CONFIG`, then
-`$XDG_CONFIG_HOME/sloth-valet/config.toml` (falling back to
-`~/.config/sloth-valet/config.toml`). Use `--config PATH` to choose another file.
+The CLI reads `$SLOTH_VALET_CONFIG` when set, otherwise
+`~/.config/sloth-valet/valet.toml`. Use `--config PATH` to choose another file:
+
+```sh
+uv run valet --config ./valet.toml config init
+```
 
 Relative paths in a config are resolved against that config file's directory.
-`~` is expanded. Symlinked watch roots and symlinked destination roots are refused.
+`~` is expanded. A destination root inside any watch root is rejected at load time.
+Symlinked watch roots and filesystem symlinks are refused by the scanner.
 
-`general.reports_dir` and `general.journal_path` are added beyond the baseline
-config shape because reports and the undo journal need stable locations. Model
-failures can either leave a file in place or route it to `_review/`:
-
-```toml
-[general]
-on_uncertain = "leave"  # or "review"
-```
+The model name has no default. Read an installed name from `ollama list` and put it
+in the config; Sloth Valet never invents one.
 
 ## Development
 
@@ -69,16 +70,3 @@ uv run pytest -q
 ```
 
 The test suite avoids network access and Ollama.
-
-## Roadmap
-
-1. **Foundation and scanner safety** - package scaffold, validated config, read-only
-   scanner, tests, CI.
-2. **Journal and safe moves** - SQLite pending/done journal, collision-safe moves,
-   undo, crash recovery.
-3. **Extraction and classification** - text extraction, Ollama client, strict schema
-   validation, filename sanitization, confidence handling, fast path.
-4. **Orchestration and reporting** - plain-code run loop, dry-run/apply CLI, review
-   routing, Markdown reports, end-to-end safety and idempotence tests.
-5. **Operations and polish** - systemd units, benchmark harness, fixtures, installer,
-   complete documentation, release `v0.1.0`.

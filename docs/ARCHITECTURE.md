@@ -12,7 +12,7 @@ scan -> extract -> classify -> plan -> apply -> report
 
 `scanner.Scanner` walks each configured watch root and produces:
 
-- `Candidate` objects for settled, regular, non-ignored files;
+- `FileCandidate` objects for settled, regular, non-ignored files;
 - `SkippedPath` records with a stable reason for reporting;
 - `ScanError` records for unreadable roots or directories.
 
@@ -22,14 +22,18 @@ later stages can prove they are still looking at the same file.
 
 The scanner enforces root confinement, symlink refusal, protected paths, ignore
 globs, destination exclusion, partial-download suffixes, settle time, and a
-double-stat check. `docs/SAFETY.md` records the exact guarantees.
+double-stat check. Config loading separately rejects any destination root that sits
+inside a watch root. `docs/SAFETY.md` records the exact guarantees.
 
 ## Modules
 
 - `config.py` - TOML loading and frozen, strict Pydantic models. Relative paths
-  resolve against the config file.
-- `models.py` - domain records plus the strict decision schema and filename
-  sanitizer used for untrusted model output.
+  resolve against the config file. The default is
+  `~/.config/sloth-valet/valet.toml`; `config init` writes the packaged example
+  without overwriting, and `config show` prints the resolved config as JSON.
+- `models.py` - domain records (`FileCandidate`, `Classification`, `PlannedMove`,
+  `MoveRecord`) plus the strict decision schema and filename sanitizer used for
+  untrusted model output.
 - `scanner.py` - read-only candidate discovery and pre-model safety filters.
 - `cli.py` - Typer composition root. The current `scan` command is intentionally
   read-only.
