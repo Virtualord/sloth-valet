@@ -13,10 +13,10 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 MAX_CLASSIFICATION_BYTES = 64 * 1024
-MAX_FILENAME_BYTES = 255
+MAX_FILENAME_CHARS = 80
+MAX_SUBFOLDER_CHARS = 60
 _EXTENSION_PATTERN = re.compile(r"^\.[A-Za-z0-9][A-Za-z0-9._-]{0,20}$")
-_UNSAFE_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
-_CONTROL_OR_FORMAT = re.compile(r"[\x00-\x1f\x7f]")
+_NON_SLUG = re.compile(r"[^a-z0-9]+")
 
 
 class SkipReason(StrEnum):
@@ -128,6 +128,34 @@ class Classification(BaseModel):
     reason: str = Field(max_length=500)
 
 
+class ClassificationFailure(StrEnum):
+    """Failure modes that must leave a file untouched or route it to review."""
+
+    MODEL_UNAVAILABLE = "model_unavailable"
+    TIMEOUT = "timeout"
+    HTTP_ERROR = "http_error"
+    INVALID_RESPONSE = "invalid_response"
+    INVALID_JSON = "invalid_json"
+    CATEGORY_NOT_ALLOWED = "category_not_allowed"
+    LOW_CONFIDENCE = "low_confidence"
+    INVALID_FILENAME = "invalid_filename"
+
+
+@dataclass(frozen=True, slots=True)
+class ClassificationResult:
+    """One classification attempt; exactly one of classification/failure is set."""
+
+    classification: Classification | None
+    failure: ClassificationFailure | None = None
+    detail: str | None = None
+    used_fast_path: bool = False
+    parsed_json: bool = False
+
+    def __post_init__(self) -> None:
+        if (self.classification is None) == (self.failure is None):
+            raise ValueError("exactly one of classification or failure must be set")
+
+
 @dataclass(frozen=True, slots=True)
 class PlannedMove:
     """A validated candidate paired with its intended destination."""
@@ -180,18 +208,25 @@ def parse_classification_json(payload: str) -> Classification:
         ) from exc
 
 
-def _truncate_utf8(value: str, max_bytes: int) -> str:
-    while len(value.encode("utf-8")) > max_bytes:
-        value = value[:-1]
+def _strip_proposed_extension(value: str) -> str:
+    suffix = Path(value).suffix
+    if suffix and _EXTENSION_PATTERN.fullmatch(suffix):
+        return value[: -len(suffix)]
     return value
 
 
-def sanitize_filename(raw: str, original_name: str) -> str:
-    """Turn model-proposed text into one safe path component.
+def _slugify(value: str, max_chars: int) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = _NON_SLUG.sub("-", ascii_text.casefold()).strip("-")
+    return slug[:max_chars].strip("-")
 
-    Path separators, control characters, hidden-file prefixes, and Windows-reserved
-    characters are rejected or removed. The source file's extension is retained when
-    the model omits or changes it, and the result is capped at 255 UTF-8 bytes.
+
+def sanitize_filename(raw: str, original_name: str) -> str:
+    """Reduce model-proposed text to one safe, lowercase filename component.
+
+    The source extension is retained, all other path-like text is slugified away,
+    leading dots are impossible, and the complete name is capped at 80 characters.
     """
     if not isinstance(raw, str):
         raise FilenameError("filename must be a string")
@@ -199,37 +234,27 @@ def sanitize_filename(raw: str, original_name: str) -> str:
     normalized = unicodedata.normalize("NFKC", raw).strip()
     if not normalized:
         raise FilenameError("filename is empty")
-    if "/" in normalized or "\\" in normalized:
-        raise FilenameError("filename contains a path separator")
-    if _CONTROL_OR_FORMAT.search(normalized):
-        raise FilenameError("filename contains control characters")
-
-    normalized = "".join(
-        "_" if unicodedata.category(character).startswith("C") else character
-        for character in normalized
-    )
-    normalized = _UNSAFE_FILENAME_CHARS.sub("_", normalized)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-    normalized = normalized.lstrip(". ")
-    normalized = normalized.rstrip(". ")
-    if not normalized or normalized in {".", ".."}:
-        raise FilenameError("filename has no usable characters")
 
     original_suffix = Path(original_name).suffix
     if not _EXTENSION_PATTERN.fullmatch(original_suffix):
         original_suffix = ""
-
-    proposed_suffix = Path(normalized).suffix
-    if original_suffix and proposed_suffix.casefold() != original_suffix.casefold():
-        normalized = f"{normalized}{original_suffix}"
-
-    suffix = Path(normalized).suffix
-    stem = normalized[: -len(suffix)] if suffix else normalized
-    suffix_bytes = len(suffix.encode("utf-8"))
-    if suffix_bytes >= MAX_FILENAME_BYTES:
+    if len(original_suffix) >= MAX_FILENAME_CHARS:
         raise FilenameError("filename extension is too long")
+    if original_suffix and normalized.casefold() == original_suffix.casefold():
+        raise FilenameError("filename is only the source extension")
 
-    stem = _truncate_utf8(stem.rstrip(". "), MAX_FILENAME_BYTES - suffix_bytes).rstrip(". ")
+    stem_source = _strip_proposed_extension(normalized)
+    stem = _slugify(stem_source, MAX_FILENAME_CHARS - len(original_suffix))
     if not stem:
-        stem = "file"
-    return f"{stem}{suffix}"
+        raise FilenameError("filename has no usable characters")
+    return f"{stem}{original_suffix}"
+
+
+def sanitize_subfolder(raw: str) -> str:
+    """Return one optional safe path component with no separators or leading dots."""
+    if not isinstance(raw, str):
+        raise FilenameError("subfolder must be a string")
+    normalized = unicodedata.normalize("NFKC", raw).strip()
+    if not normalized:
+        return ""
+    return _slugify(normalized, MAX_SUBFOLDER_CHARS)

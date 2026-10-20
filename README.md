@@ -6,9 +6,10 @@ Sloth Valet waits for files to settle, asks a small local open-weight model for 
 category and clean name, and moves them into a tidy destination tree. It runs
 offline, journals every move, and never guesses when the model is unsure.
 
-**Status:** config loading, domain models, the read-only scanner, and bounded content
-extraction are implemented. Classification, moving, journaling, and reports are
-landing in the following phases.
+**Status:** config loading, domain models, the read-only scanner, bounded content
+extraction, the Ollama client, and strict classification are implemented. The
+`valet run` pipeline, moves, journaling, undo, and reports are landing in the
+following phases.
 
 ## Why this shape
 
@@ -67,6 +68,14 @@ default scan waits two seconds between those reads for the whole candidate batch
 The model name has no default. Read an installed name from `ollama list` and put it
 in the config; Sloth Valet never invents one.
 
+Classification is strict: the model must return the Pydantic schema, the category
+must come from the allowlist, the filename is slugified and keeps the original
+extension, and low confidence is a failure rather than a guess. Configured
+`fast_path` extensions skip the model entirely. Extracted text is fenced as untrusted
+data in the prompt, but prompt injection is not magic: a small model can still pick a
+wrong allowed category, which is why review routing and undo are part of the safety
+model.
+
 ## Development
 
 ```sh
@@ -75,4 +84,10 @@ uv run mypy src tests
 uv run pytest -q
 ```
 
-The test suite avoids network access and Ollama.
+The default test suite uses `httpx.MockTransport` and never needs network access or
+Ollama. One live smoke test is skipped unless both variables are set:
+
+```sh
+SLOTH_VALET_LIVE=1 SLOTH_VALET_TEST_MODEL="$(ollama list | awk 'NR==2 {print $1}')" \
+  uv run pytest -q tests/test_classifier.py -m live
+```

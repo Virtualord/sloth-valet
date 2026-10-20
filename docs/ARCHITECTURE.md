@@ -8,7 +8,7 @@ scan -> extract -> classify -> plan -> apply -> report
          ^ model call only here
 ```
 
-## Current stages: scan and extract
+## Current stages: scan, extract, classify
 
 `scanner.Scanner` walks each configured watch root and produces:
 
@@ -35,6 +35,30 @@ the first three pages through `pypdf`; DOCX files return their paragraphs throug
 type only. Control characters are removed and every parser failure becomes empty text
 with a reason instead of an exception.
 
+`classifier.Classifier` checks the configured `fast_path` extension map before doing
+anything else. Obvious files such as `.deb` or `.iso` become deterministic
+classifications without a model call, even when Ollama is down. Everything else asks
+`ollama.OllamaClient` for `GET /api/tags` once, then sends one non-streaming
+`POST /api/chat` request with `format` set to the Pydantic classification JSON schema,
+the configured temperature, and the configured timeout.
+
+The system prompt contains the category allowlist and three allowed few-shot examples
+(or fewer when the allowlist is short). It explicitly labels names, metadata, and
+extracted text as untrusted data, not instructions. The extracted text is fenced and
+marker-like strings inside it are neutralized. The model's JSON is parsed strictly,
+the category is checked against the allowlist, both filename and subfolder are
+slugified into single safe components, the source extension is retained, and the
+confidence threshold is enforced. Invalid JSON, an unavailable model, timeout, HTTP
+error, invalid category, unusable filename, or low confidence produces a
+`ClassificationResult` failure rather than a guess.
+
+`ollama.py` is the only package module that imports an HTTP library. It uses the
+configured host as its client base URL, follows no redirects, ignores proxy
+environment variables, sends no telemetry, and exposes only the tags health check and
+the chat endpoint. Tests inject `httpx.MockTransport`, so CI never needs Ollama. A
+single live test is skipped unless `SLOTH_VALET_LIVE=1` and
+`SLOTH_VALET_TEST_MODEL` are set; it never hardcodes a model name.
+
 ## Modules
 
 - `config.py` - TOML loading and frozen, strict Pydantic models. Relative paths
@@ -44,18 +68,18 @@ with a reason instead of an exception.
 - `models.py` - domain records (`FileCandidate`, `Classification`, `PlannedMove`,
   `MoveRecord`) plus the strict decision schema and filename sanitizer used for
   untrusted model output.
+- `extract.py` - bounded text extraction by extension using `pypdf` and
+  `python-docx`; no libmagic and no execution.
+- `ollama.py` - the only HTTP module. Tags health check plus one schema-constrained
+  chat endpoint on the configured host.
+- `classifier.py` - deterministic fast path, prompt construction, strict parsing,
+  allowlist/confidence enforcement, and failure records.
 - `scanner.py` - read-only candidate discovery and pre-model safety filters.
 - `cli.py` - Typer composition root. The current `scan` command is intentionally
   read-only.
 
 ## Planned stages
 
-- **extract** - bounded text extraction by extension using `pypdf` and `python-docx`;
-  no libmagic and no execution.
-- **classify** - deterministic fast paths first, then one HTTP request to the
-  configured Ollama endpoint. Strict JSON schema, allowlisted category, sanitized
-  filename, confidence threshold. Every failure leaves the file alone or routes it to
-  review.
 - **plan** - resolve destination and collision names without touching disk.
 - **apply** - journal pending, revalidate paths and fingerprints, move without
   overwriting, mark done.

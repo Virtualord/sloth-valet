@@ -44,6 +44,9 @@ def write_config(
     recursive: bool = False,
     settle_minutes: int = 30,
     max_file_size_mb: int = 100,
+    model_name: str = "fixture-model",
+    model_host: str = "http://127.0.0.1:11434",
+    model_temperature: float = 0,
     globs: tuple[str, ...] = ("*.part", "*.crdownload", "*.tmp", ".*"),
     protect_paths: tuple[Path, ...] = (),
     categories: tuple[str, ...] = DEFAULT_CATEGORIES,
@@ -75,9 +78,9 @@ review_folder = "_review"
 reports_dir = {_toml_string(reports_dir)}
 
 [model]
-host = "http://127.0.0.1:11434"
-name = "fixture-model"
-temperature = 0
+host = {_toml_string(model_host)}
+name = {_toml_string(model_name)}
+temperature = {model_temperature}
 timeout_s = 5
 min_confidence = 0.7
 text_chars = 1500
