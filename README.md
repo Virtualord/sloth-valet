@@ -6,8 +6,9 @@ Sloth Valet waits for files to settle, asks a small local open-weight model for 
 category and clean name, and moves them into a tidy destination tree. It runs
 offline, journals every move, and never guesses when the model is unsure.
 
-**Status:** config loading, domain models, and a read-only scanner are implemented.
-Moving, journaling, classification, and reports are landing in the following phases.
+**Status:** config loading, domain models, the read-only scanner, and bounded content
+extraction are implemented. Classification, moving, journaling, and reports are
+landing in the following phases.
 
 ## Why this shape
 

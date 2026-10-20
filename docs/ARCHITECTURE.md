@@ -8,7 +8,7 @@ scan -> extract -> classify -> plan -> apply -> report
          ^ model call only here
 ```
 
-## Current stage: scan
+## Current stages: scan and extract
 
 `scanner.Scanner` walks each configured watch root and produces:
 
@@ -27,6 +27,13 @@ The stability delay defaults to two seconds, happens once per scan after all
 provisional candidates are known, and is injectable for tests. Config loading
 separately rejects any destination root that sits inside a watch root.
 `docs/SAFETY.md` records the exact guarantees.
+
+`extract.extract_file` turns one candidate into bounded text plus metadata. Text,
+Markdown, code, and CSV files return the first `text_chars` characters. PDFs return
+the first three pages through `pypdf`; DOCX files return their paragraphs through
+`python-docx`. Images and unknown binaries return name, extension, size, and MIME
+type only. Control characters are removed and every parser failure becomes empty text
+with a reason instead of an exception.
 
 ## Modules
 
