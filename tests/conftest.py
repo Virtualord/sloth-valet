@@ -43,6 +43,7 @@ def write_config(
     destination: Path | None = None,
     recursive: bool = False,
     settle_minutes: int = 30,
+    max_file_size_mb: int = 100,
     globs: tuple[str, ...] = ("*.part", "*.crdownload", "*.tmp", ".*"),
     protect_paths: tuple[Path, ...] = (),
     categories: tuple[str, ...] = DEFAULT_CATEGORIES,
@@ -69,6 +70,7 @@ def write_config(
 [general]
 dry_run = true
 settle_minutes = {settle_minutes}
+max_file_size_mb = {max_file_size_mb}
 review_folder = "_review"
 reports_dir = {_toml_string(reports_dir)}
 
