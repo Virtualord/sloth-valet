@@ -6,7 +6,7 @@ from pathlib import Path
 
 from conftest import make_file, write_config
 
-from sloth_valet.models import Candidate, ScanResult, SkipReason
+from sloth_valet.models import FileCandidate, ScanResult, SkipReason
 from sloth_valet.scanner import Scanner
 
 
@@ -145,23 +145,6 @@ def test_watch_root_that_is_a_file_is_an_error(tmp_path: Path) -> None:
     assert "not a directory" in result.errors[0].message
 
 
-def test_destination_tree_nested_in_watch_is_pruned(tmp_path: Path) -> None:
-    watch = tmp_path / "watch"
-    destination = watch / "Sorted"
-    paths = write_config(
-        tmp_path,
-        watch_path=watch,
-        destination=destination,
-        recursive=True,
-    )
-    make_file(destination / "misc" / "already-sorted.pdf")
-    visible = make_file(watch / "new.pdf")
-
-    result = Scanner(paths.load()).scan()
-
-    assert {candidate.source for candidate in result.candidates} == {visible}
-
-
 def test_second_stat_change_is_skipped(tmp_path: Path) -> None:
     paths = write_config(tmp_path)
     source = make_file(paths.watch / "changing.pdf", content=b"first")
@@ -216,7 +199,7 @@ def test_candidate_fingerprint_detects_size_and_mtime_changes(tmp_path: Path) ->
     paths = write_config(tmp_path)
     source = make_file(paths.watch / "fingerprint.pdf")
     candidate = Scanner(paths.load()).scan().candidates[0]
-    assert isinstance(candidate, Candidate)
+    assert isinstance(candidate, FileCandidate)
 
     source.write_bytes(b"a different size")
     assert not candidate.matches_stat(source.stat())

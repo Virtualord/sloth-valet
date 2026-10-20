@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
+
 import pytest
 
 from sloth_valet.models import (
-    DecisionError,
+    Classification,
+    ClassificationError,
+    FileCandidate,
     FilenameError,
-    ModelDecision,
-    parse_decision_json,
+    MoveRecord,
+    MoveStatus,
+    PlannedMove,
+    parse_classification_json,
     sanitize_filename,
 )
 
-VALID_DECISION = """
-{"category": "finance", "filename": "january-statement.pdf", "confidence": 0.93,
+VALID_CLASSIFICATION = """
+{"category": "finance", "subfolder": "statements",
+ "new_name": "january-statement.pdf", "confidence": 0.93,
  "reason": "Bank statement"}
 """
 
@@ -19,12 +27,13 @@ VALID_DECISION = """
 FULLWIDTH_QUARTERLY = "".join(chr(ord(character) + 0xFEE0) for character in "Quarterly") + ".pdf"
 
 
-def test_valid_decision_is_parsed_strictly() -> None:
-    decision = parse_decision_json(VALID_DECISION)
+def test_valid_classification_is_parsed_strictly() -> None:
+    classification = parse_classification_json(VALID_CLASSIFICATION)
 
-    assert decision == ModelDecision(
+    assert classification == Classification(
         category="finance",
-        filename="january-statement.pdf",
+        subfolder="statements",
+        new_name="january-statement.pdf",
         confidence=0.93,
         reason="Bank statement",
     )
@@ -34,23 +43,62 @@ def test_valid_decision_is_parsed_strictly() -> None:
     "payload",
     [
         "not json",
-        "```json\n{\"category\": \"misc\", \"filename\": \"x\", \"confidence\": 0.9}\n```",
-        '{"category": "misc", "filename": "x", "confidence": 0.9, "extra": true}',
-        '{"category": "misc", "filename": "x"}',
-        '{"category": "misc", "filename": "x", "confidence": 1.2}',
-        '{"category": "misc", "filename": "x", "confidence": "high"}',
-        '{"category": "misc", "filename": "x", "confidence": NaN}',
-        '["misc", "x", 0.9]',
+        '```json\n{"category": "misc", "subfolder": "", "new_name": "x", '
+        '"confidence": 0.9, "reason": ""}\n```',
+        '{"category": "misc", "subfolder": "", "new_name": "x", '
+        '"confidence": 0.9, "reason": "", "extra": true}',
+        '{"category": "misc", "new_name": "x", "confidence": 0.9, "reason": ""}',
+        '{"category": "misc", "subfolder": "", "confidence": 0.9, "reason": ""}',
+        '{"category": "misc", "subfolder": "", "new_name": "x", "confidence": 0.9}',
+        '{"category": "misc", "subfolder": "", "new_name": "x", "confidence": 1.2, '
+        '"reason": ""}',
+        '{"category": "misc", "subfolder": "", "new_name": "x", '
+        '"confidence": "high", "reason": ""}',
+        '{"category": "misc", "subfolder": "", "new_name": "x", '
+        '"confidence": NaN, "reason": ""}',
+        '["misc", "", "x", 0.9, ""]',
     ],
 )
 def test_invalid_model_output_is_rejected(payload: str) -> None:
-    with pytest.raises(DecisionError):
-        parse_decision_json(payload)
+    with pytest.raises(ClassificationError):
+        parse_classification_json(payload)
 
 
 def test_oversized_model_output_is_rejected() -> None:
-    with pytest.raises(DecisionError, match="size limit"):
-        parse_decision_json(" " * (64 * 1024 + 1))
+    with pytest.raises(ClassificationError, match="size limit"):
+        parse_classification_json(" " * (64 * 1024 + 1))
+
+
+def test_pipeline_domain_models_compose() -> None:
+    classification = parse_classification_json(VALID_CLASSIFICATION)
+    candidate = FileCandidate(
+        source=Path("/watch/statement.pdf"),
+        watch_root=Path("/watch"),
+        destination_root=Path("/sorted"),
+        size=123,
+        mtime_ns=456,
+        device=7,
+        inode=8,
+    )
+    destination = Path("/sorted/finance/statements/january-statement.pdf")
+    planned = PlannedMove(
+        candidate=candidate,
+        classification=classification,
+        destination=destination,
+    )
+    created_at = datetime(2026, 10, 20, 8, 0, tzinfo=UTC)
+
+    assert planned.source == candidate.source
+    assert planned.classification.category == "finance"
+    record = MoveRecord(
+        source=planned.source,
+        destination=planned.destination,
+        status=MoveStatus.PENDING,
+        created_at=created_at,
+    )
+    assert record.status == MoveStatus.PENDING
+    assert record.completed_at is None
+    assert record.id is None
 
 
 @pytest.mark.parametrize(
