@@ -3,12 +3,29 @@
 Sloth Valet is a plain-code pipeline. There is no agent framework and no hidden loop:
 each stage returns data for the next, and every stage is independently testable.
 
-```text
-scan -> extract -> classify -> plan -> apply -> report
-         ^ model call only here
+```mermaid
+flowchart LR
+    W[Watch roots] --> S[Scanner<br/>safety gates + settle]
+    S --> X[Extractor<br/>bounded text]
+    X --> C[Classifier<br/>strict JSON]
+    O[(Local Ollama)] <--> C
+    C --> P[Planner<br/>allowlist + collisions]
+    P --> D{Dry run?}
+    D -->|yes| R[Report writer]
+    D -->|no| J[Journal pending]
+    J --> M[Revalidating safe move]
+    M --> K[Journal done]
+    K --> R
+    R --> MD[Markdown report]
+    J -. crash .-> RC[Reconcile next run]
+    RC --> R
 
-bench -> load labels -> extract -> classify -> metrics -> JSON + Markdown
+    B[Benchmark labels] --> BF[Fixture files]
+    BF --> BX[Extractor] --> BC[Classifier] --> BM[Metrics] --> BR[JSON + Markdown]
 ```
+
+The run pipeline and the benchmark share extraction and classification, but the
+benchmark stops at metrics: it never plans, journals, moves, or deletes.
 
 ## Current stages: scan, extract, classify, plan, apply, report, undo, schedule, benchmark
 
@@ -162,3 +179,12 @@ move.
 The journal, report, and undo path are part of the trust boundary: a crash between
 any two stages must leave the filesystem and journal in a recoverable state. The
 benchmark is deliberately outside that boundary because it only reads fixtures.
+
+## Packaging and deployment
+
+`pyproject.toml` exposes the `valet` console script from `cli.main_entrypoint`.
+`install.sh` installs the project as an isolated `uv tool`; this keeps runtime
+dependencies out of the user's global Python environment. The systemd unit embeds an
+absolute executable path and an absolute config path, both quoted as systemd
+arguments. The example config is packaged with the Python module so `valet config
+init` works from an installed wheel as well as an editable checkout.
