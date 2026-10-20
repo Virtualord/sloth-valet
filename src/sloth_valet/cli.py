@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,17 @@ from sloth_valet.config import (
 from sloth_valet.journal import Journal
 from sloth_valet.runner import RunResult, execute_run
 from sloth_valet.scanner import Scanner
+from sloth_valet.systemd import (
+    TIMER_NAME,
+    UnitPaths,
+    default_unit_dir,
+    install_units,
+    installed_schedule,
+    installed_state,
+    parse_time,
+    remove_units,
+    systemctl,
+)
 
 app = typer.Typer(
     name="valet",
@@ -352,6 +364,131 @@ def report(
         typer.echo(f"Could not read report {record.report_path}: {exc}", err=True)
         raise typer.Exit(code=1) from exc
     typer.echo(content, nl=False)
+
+
+@app.command("install-timer")
+def install_timer(
+    ctx: typer.Context,
+    time: Annotated[
+        str,
+        typer.Option("--time", help="Daily 24-hour HH:MM run time."),
+    ] = "03:00",
+    executable: Annotated[
+        Path | None,
+        typer.Option(
+            "--valet",
+            help="Path to the valet executable used by the systemd service.",
+            dir_okay=False,
+        ),
+    ] = None,
+) -> None:
+    """Install and enable a daily systemd user timer."""
+    try:
+        hour, minute = parse_time(time)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+    state = _state_or_exit(ctx)
+    _load_or_exit(state)
+    valet_path = executable
+    if valet_path is None:
+        discovered = shutil.which("valet")
+        valet_path = Path(discovered) if discovered else Path.home() / ".local/bin" / "valet"
+    unit_dir = default_unit_dir()
+    try:
+        service_path, timer_path = install_units(
+            unit_dir,
+            executable=valet_path,
+            config_path=state.config_path,
+            hour=hour,
+            minute=minute,
+        )
+    except OSError as exc:
+        typer.echo(f"Could not write systemd units: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"Wrote {service_path}")
+    typer.echo(f"Wrote {timer_path}")
+    reloaded = systemctl("daemon-reload")
+    enabled = systemctl("enable", "--now", TIMER_NAME)
+    if not reloaded or not enabled:
+        typer.echo(
+            "Units were written, but systemd could not reload or enable the timer. "
+            "Run: systemctl --user daemon-reload && "
+            f"systemctl --user enable --now {TIMER_NAME}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    typer.echo(f"Enabled {TIMER_NAME} for {time.strip()} every day.")
+
+
+@app.command("uninstall-timer")
+def uninstall_timer(ctx: typer.Context) -> None:
+    """Disable the timer and remove Sloth Valet's systemd units."""
+    _state_or_exit(ctx)
+    unit_dir = default_unit_dir()
+    disabled = systemctl("disable", "--now", TIMER_NAME)
+    try:
+        removed = remove_units(unit_dir)
+    except OSError as exc:
+        typer.echo(f"Could not remove systemd units: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    reloaded = systemctl("daemon-reload")
+    if removed:
+        for path in removed:
+            typer.echo(f"Removed {path}")
+    else:
+        typer.echo("No Sloth Valet systemd units were installed.")
+    if not disabled or not reloaded:
+        typer.echo(
+            "If the timer was active, finish cleanup with: systemctl --user "
+            "daemon-reload",
+            err=True,
+        )
+
+
+@app.command()
+def status(ctx: typer.Context) -> None:
+    """Show config, timer installation, and the most recent run."""
+    state = _state_or_exit(ctx)
+    config = _load_or_exit(state)
+    unit_paths = UnitPaths(default_unit_dir())
+    service_installed, timer_installed = installed_state(unit_paths.unit_dir)
+    schedule = installed_schedule(unit_paths.unit_dir)
+    journal = Journal(config.journal_path)
+    try:
+        last_run = journal.last_run()
+    finally:
+        journal.close()
+
+    typer.echo("Sloth Valet")
+    typer.echo(f"  config: {state.config_path}")
+    typer.echo(f"  model: {config.model.name} at {config.model.host}")
+    typer.echo(f"  dry_run: {str(config.general.dry_run).lower()}")
+    for watch in config.watch:
+        typer.echo(
+            f"  watch: {watch.path} -> {watch.destination_root}"
+            f" (recursive={str(watch.recursive).lower()})"
+        )
+    typer.echo(f"  journal: {config.journal_path}")
+    if last_run is None:
+        typer.echo("  last run: none")
+    else:
+        typer.echo(
+            f"  last run: {last_run.id} ({last_run.mode.value}, "
+            f"{last_run.status.value}) moved={last_run.moved_count} "
+            f"review={last_run.review_count} skipped={last_run.skipped_count} "
+            f"failed={last_run.failed_count}"
+        )
+        if last_run.report_path is not None:
+            suffix = "" if last_run.report_path.exists() else " (missing)"
+            typer.echo(f"  report: {last_run.report_path}{suffix}")
+    if service_installed and timer_installed:
+        typer.echo(f"  timer: installed ({unit_paths.timer})")
+        typer.echo(f"  schedule: {schedule or 'unknown'}")
+    else:
+        typer.echo("  timer: not installed")
+        typer.echo("  next: valet install-timer --time 03:00")
 
 
 def _print_undo_outcomes(outcomes: tuple[UndoOutcome, ...]) -> None:

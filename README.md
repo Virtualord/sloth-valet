@@ -8,8 +8,8 @@ offline, journals every move, and never guesses when the model is unsure.
 
 **Status:** config loading, domain models, the read-only scanner, bounded content
 extraction, the Ollama client, strict classification, planning, journaled moves,
-review routing, crash reconciliation, undo, and Markdown reports are implemented.
-Scheduling and the benchmark harness are landing in the following phases.
+review routing, crash reconciliation, undo, Markdown reports, and systemd scheduling
+are implemented. The benchmark harness is landing in the next phase.
 
 ## Why this shape
 
@@ -68,6 +68,25 @@ by default; set `review_on_failure = false` to leave them in place instead.
 Cross-filesystem moves copy, verify SHA-256, and only then remove the source. A
 pending row left by a crash is reconciled on the next run without deleting ambiguous
 files.
+
+For a daily unattended pass, install a systemd user timer after testing a real
+dry run:
+
+```sh
+uv run valet install-timer --time 03:00
+uv run valet status
+uv run valet uninstall-timer
+```
+
+The units are written to `$XDG_CONFIG_HOME/systemd/user` (default
+`~/.config/systemd/user`). The service runs
+`valet --config <config> run --apply` once at the requested time, with `Nice=10` and
+idle I/O priority. `--valet PATH` overrides the executable path used in the unit.
+`install-timer` calls `systemctl --user daemon-reload` and
+`systemctl --user enable --now sloth-valet.timer`; if that fails, the units remain
+written and the command explains how to finish. `status` is read-only and does not
+invoke `systemctl`. The timer intentionally applies moves, so run a dry-run pass
+first.
 
 ## Configuration
 
