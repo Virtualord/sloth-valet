@@ -8,7 +8,7 @@ scan -> extract -> classify -> plan -> apply -> report
          ^ model call only here
 ```
 
-## Current stages: scan, extract, classify, plan, apply, undo
+## Current stages: scan, extract, classify, plan, apply, report, undo
 
 `scanner.Scanner` walks each configured watch root and produces:
 
@@ -93,7 +93,18 @@ The SQLite journal lives beside `general.reports_dir`
 (`<reports_dir parent>/journal.sqlite3`), never inside a watch root because config
 loading rejects a `reports_dir` under any watch root. It has a `runs` table for every
 invocation (including dry runs) and a `moves` table with pending/done/failed/reverted
-state.
+state. Each run row also stores the path of its Markdown report.
+
+`report.write_report` writes a timestamped, never-overwritten Markdown file into
+`reports_dir`: a title, a three-line summary, and a detail table of moves, review
+routing, skipped paths, scan errors, and journal repairs. Paths and error text are
+escaped so a crafted filename cannot inject table columns or raw HTML. The report
+does not repeat free-form model output; it shows allowlisted categories and stable
+failure reasons. The path is recorded in the journal, and `valet report --last` (or
+`--run ID`) prints that file. If `general.notify` is true, a short count-only
+`notify-send` call is attempted with a fixed argument list; notification failure never
+changes a run result. Report-write failure is also non-fatal to an already-completed
+move.
 
 ## Modules
 
@@ -117,11 +128,14 @@ state.
 - `applier.py` - revalidating moves, cross-filesystem verification, pending-row
   reconciliation, and cautious undo.
 - `runner.py` - the plain-code pipeline and dry-run/apply selection.
-- `cli.py` - Typer composition root for `scan`, `run`, `undo`, and config commands.
+- `report.py` - Markdown rendering, report-file allocation, and optional desktop
+  notifications.
+- `cli.py` - Typer composition root for `scan`, `run`, `report`, `undo`, and config
+  commands.
 
 ## Planned stages
 
-- **report** - a short Markdown summary of moves, reviews, skips, and errors.
+- **operations** - systemd scheduling and the benchmark harness.
 
-The journal and undo path are part of the trust boundary: a crash between any two
-stages must leave the filesystem and journal in a recoverable state.
+The journal, report, and undo path are part of the trust boundary: a crash between
+any two stages must leave the filesystem and journal in a recoverable state.

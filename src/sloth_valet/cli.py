@@ -311,6 +311,49 @@ def undo(
     _print_undo_outcomes(outcomes)
 
 
+@app.command()
+def report(
+    ctx: typer.Context,
+    last: Annotated[
+        bool,
+        typer.Option("--last", help="Print the most recent run report."),
+    ] = False,
+    run_id: Annotated[
+        str | None,
+        typer.Option("--run", help="Print the report for a specific run id."),
+    ] = None,
+) -> None:
+    """Print a Markdown report written by a previous run."""
+    if last == (run_id is not None):
+        typer.echo("Choose exactly one of --last or --run ID.", err=True)
+        raise typer.Exit(code=2)
+    state = _state_or_exit(ctx)
+    config = _load_or_exit(state)
+    journal = Journal(config.journal_path)
+    try:
+        if last:
+            record = journal.last_run(with_report=True)
+        else:
+            if run_id is None:
+                typer.echo("A run id is required.", err=True)
+                raise typer.Exit(code=2)
+            record = journal.get_run(run_id)
+    finally:
+        journal.close()
+    if record is None:
+        typer.echo("No matching run with a report was found.", err=True)
+        raise typer.Exit(code=1)
+    if record.report_path is None:
+        typer.echo(f"Run {record.id!r} has no report.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        content = record.report_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        typer.echo(f"Could not read report {record.report_path}: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(content, nl=False)
+
+
 def _print_undo_outcomes(outcomes: tuple[UndoOutcome, ...]) -> None:
     if not outcomes:
         typer.echo("No completed moves were found for that run.")

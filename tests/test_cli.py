@@ -282,3 +282,67 @@ def test_undo_unknown_run_exits_nonzero(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "not found" in result.output
+
+
+def test_report_last_prints_the_markdown_report(tmp_path: Path) -> None:
+    paths = write_config(tmp_path, fast_path={".deb": "installers"})
+    make_file(paths.watch / "tool.deb")
+    applied = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run", "--apply"],
+    )
+    assert applied.exit_code == 0, applied.output
+
+    result = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "report", "--last"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "# Sloth Valet report" in result.output
+    assert "Moved 1" in result.output
+    assert "| moved |" in result.output
+
+
+def test_report_by_run_id(tmp_path: Path) -> None:
+    paths = write_config(tmp_path)
+    dry = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "run"],
+    )
+    assert dry.exit_code == 0, dry.output
+    with Journal(paths.load().journal_path) as journal:
+        record = journal.last_run(with_report=True)
+        assert record is not None
+        run_id = record.id
+
+    result = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "report", "--run", run_id],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Dry run: would move 0" in result.output
+
+
+def test_report_requires_exactly_one_selector(tmp_path: Path) -> None:
+    paths = write_config(tmp_path)
+
+    neither = runner.invoke(
+        app,
+        ["--config", str(paths.config_path), "report"],
+    )
+    both = runner.invoke(
+        app,
+        [
+            "--config",
+            str(paths.config_path),
+            "report",
+            "--last",
+            "--run",
+            "abc",
+        ],
+    )
+
+    assert neither.exit_code == 2
+    assert both.exit_code == 2

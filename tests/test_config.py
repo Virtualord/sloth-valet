@@ -43,6 +43,7 @@ def test_load_config_resolves_absolute_paths_and_fast_path(tmp_path: Path) -> No
     assert config.general.dry_run is True
     assert config.general.max_file_size_mb == 100
     assert config.general.review_on_failure is True
+    assert config.general.notify is False
     assert config.journal_path == paths.reports_dir.parent / "journal.sqlite3"
     assert config.watch[0].path == paths.watch
     assert config.watch[0].destination_root == paths.destination

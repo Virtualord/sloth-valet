@@ -74,6 +74,7 @@ class GeneralConfig(_ConfigModel):
     max_file_size_mb: int = Field(default=100, ge=1)
     review_folder: str = "_review"
     review_on_failure: bool = True
+    notify: bool = False
     reports_dir: Path = Path("~/.local/share/sloth-valet/reports")
 
     @field_validator("reports_dir", mode="before")

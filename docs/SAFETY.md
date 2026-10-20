@@ -115,12 +115,22 @@ invariants that are implemented and tested at each phase.
   run` previews by default, writes no pending rows, and moves nothing; `--apply` or
   `dry_run = false` is required to act. `valet scan` remains read-only regardless of
   the setting. Undo always requires an explicit completed run.
+- **Reports are escaped audit artifacts.** Every run writes a timestamped Markdown
+  report with exclusive creation, so an existing report is never overwritten. The
+  report path is recorded in the journal and `valet report --last` prints it. Untrusted
+  path text is escaped for Markdown table columns and HTML; free-form model output is
+  not copied into the report, only allowlisted categories and stable failure reasons.
+  Report-write failure never changes the outcome of a completed move.
+- **Notifications cannot run arbitrary text.** `notify-send` is optional, receives a
+  fixed title and a count-only summary, is invoked with an argument list rather than a
+  shell, has a five-second timeout, and is best-effort. A missing or failing
+  notification tool is ignored.
 
 ## Deferred guarantees
 
-The following are specified and will be implemented in later phases:
+The following are specified and will be implemented in the next phase:
 
-- unattended Markdown reports and systemd scheduling.
+- systemd user units and the `install-timer`, `uninstall-timer`, and `status` commands.
 
 ## Reporting a safety issue
 

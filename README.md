@@ -8,8 +8,8 @@ offline, journals every move, and never guesses when the model is unsure.
 
 **Status:** config loading, domain models, the read-only scanner, bounded content
 extraction, the Ollama client, strict classification, planning, journaled moves,
-review routing, crash reconciliation, and undo are implemented. Reports, scheduling,
-and the benchmark harness are landing in the following phases.
+review routing, crash reconciliation, undo, and Markdown reports are implemented.
+Scheduling and the benchmark harness are landing in the following phases.
 
 ## Why this shape
 
@@ -54,16 +54,20 @@ pass `--apply`:
 
 ```sh
 uv run valet run --apply
+uv run valet report --last
 uv run valet undo --last
 ```
 
-Each applied run writes a SQLite journal and records every move as pending before it
-happens and done afterwards. `undo --last` (or `undo --run ID`) restores files only
-when the destination still exists, its SHA-256 still matches, and the original path
-is free. Low-confidence or failed classifications go to `_review/` by default; set
-`review_on_failure = false` to leave them in place instead. Cross-filesystem moves
-copy, verify SHA-256, and only then remove the source. A pending row left by a crash
-is reconciled on the next run without deleting ambiguous files.
+Each run writes a Markdown report under `reports_dir`; `report --last` prints the most
+recent one. Set `notify = true` to also send a short count-only `notify-send` desktop
+notification. Each applied run writes a SQLite journal and records every move as
+pending before it happens and done afterwards. `undo --last` (or `undo --run ID`)
+restores files only when the destination still exists, its SHA-256 still matches, and
+the original path is free. Low-confidence or failed classifications go to `_review/`
+by default; set `review_on_failure = false` to leave them in place instead.
+Cross-filesystem moves copy, verify SHA-256, and only then remove the source. A
+pending row left by a crash is reconciled on the next run without deleting ambiguous
+files.
 
 ## Configuration
 
@@ -82,9 +86,12 @@ A scan applies protected paths, ignore globs, symlink refusal, `settle_minutes`,
 the `max_file_size_mb` cap (default `100`), and a two-read stability check. The
 default scan waits two seconds between those reads for the whole candidate batch.
 
-The journal lives at `<reports_dir parent>/journal.sqlite3`. `reports_dir` may not be
-inside a watch root, so the pipeline can never scan or move its own journal. The
-review folder defaults to `_review` under each destination root.
+The journal lives at `<reports_dir parent>/journal.sqlite3`, and each run writes a
+timestamped Markdown report into `reports_dir`. `reports_dir` may not be inside a watch
+root, so the pipeline can never scan or move its own state. The review folder defaults
+to `_review` under each destination root. `notify = true` enables best-effort
+`notify-send` messages; the counts are fixed text and are never passed through a
+shell.
 
 The model name has no default. Read an installed name from `ollama list` and put it
 in the config; Sloth Valet never invents one.
