@@ -125,12 +125,21 @@ invariants that are implemented and tested at each phase.
   fixed title and a count-only summary, is invoked with an argument list rather than a
   shell, has a five-second timeout, and is best-effort. A missing or failing
   notification tool is ignored.
+- **Scheduled runs use the same applied pipeline.** `install-timer` writes a oneshot
+  service whose `ExecStart` is an argument list equivalent to
+  `valet --config <absolute config> run --apply`; the config path and executable are
+  quoted as systemd arguments, never passed through a shell. The timer is persistent,
+  so a missed run starts after boot. Installation writes only the two known unit files,
+  uses atomic replacement, refuses a symlinked unit path, and `uninstall-timer` removes
+  only those two names. `status` reads local state and never invokes `systemctl`.
+  Installing the timer is an explicit decision to apply moves automatically; run a
+  dry-run first.
 
 ## Deferred guarantees
 
 The following are specified and will be implemented in the next phase:
 
-- systemd user units and the `install-timer`, `uninstall-timer`, and `status` commands.
+- the seeded benchmark fixture generator and model comparison harness.
 
 ## Reporting a safety issue
 

@@ -8,7 +8,7 @@ scan -> extract -> classify -> plan -> apply -> report
          ^ model call only here
 ```
 
-## Current stages: scan, extract, classify, plan, apply, report, undo
+## Current stages: scan, extract, classify, plan, apply, report, undo, schedule
 
 `scanner.Scanner` walks each configured watch root and produces:
 
@@ -95,6 +95,14 @@ loading rejects a `reports_dir` under any watch root. It has a `runs` table for 
 invocation (including dry runs) and a `moves` table with pending/done/failed/reverted
 state. Each run row also stores the path of its Markdown report.
 
+`systemd.py` renders two user units without a shell: a oneshot service running
+`valet --config <absolute config> run --apply` with low CPU and I/O priority, and a
+persistent daily timer at the requested `HH:MM`. `install-timer` writes both files
+atomically into `$XDG_CONFIG_HOME/systemd/user` (or `~/.config/systemd/user`), then
+calls `systemctl --user daemon-reload` and `enable --now`. The service and timer names
+are fixed; `uninstall-timer` removes only those two files. `status` reads the unit
+files and journal directly and never invokes `systemctl`.
+
 `report.write_report` writes a timestamped, never-overwritten Markdown file into
 `reports_dir`: a title, a three-line summary, and a detail table of moves, review
 routing, skipped paths, scan errors, and journal repairs. Paths and error text are
@@ -130,12 +138,15 @@ move.
 - `runner.py` - the plain-code pipeline and dry-run/apply selection.
 - `report.py` - Markdown rendering, report-file allocation, and optional desktop
   notifications.
-- `cli.py` - Typer composition root for `scan`, `run`, `report`, `undo`, and config
-  commands.
+- `systemd.py` - user-unit rendering, atomic unit installation, exact uninstall, and
+  best-effort `systemctl` calls.
+- `cli.py` - Typer composition root for `scan`, `run`, `report`, `undo`,
+  `install-timer`, `uninstall-timer`, `status`, and config commands.
 
 ## Planned stages
 
-- **operations** - systemd scheduling and the benchmark harness.
+- **benchmark** - fixture generation, model comparison metrics, and committed result
+  artifacts.
 
 The journal, report, and undo path are part of the trust boundary: a crash between
 any two stages must leave the filesystem and journal in a recoverable state.
