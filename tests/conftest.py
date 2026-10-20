@@ -27,7 +27,6 @@ class EnvPaths:
     watch: Path
     destination: Path
     reports_dir: Path
-    journal_path: Path
 
     def load(self) -> ValetConfig:
         return load_config(self.config_path)
@@ -48,12 +47,10 @@ def write_config(
     protect_paths: tuple[Path, ...] = (),
     categories: tuple[str, ...] = DEFAULT_CATEGORIES,
     fast_path: dict[str, str] | None = None,
-    on_uncertain: str = "leave",
 ) -> EnvPaths:
     watch = watch_path or root / "watch"
     destination_root = destination or root / "destination"
     reports_dir = root / "state" / "reports"
-    journal_path = root / "state" / "journal.db"
     config_path = root / "valet.toml"
 
     watch.mkdir(parents=True, exist_ok=True)
@@ -74,8 +71,6 @@ dry_run = true
 settle_minutes = {settle_minutes}
 review_folder = "_review"
 reports_dir = {_toml_string(reports_dir)}
-journal_path = {_toml_string(journal_path)}
-on_uncertain = {_toml_string(on_uncertain)}
 
 [model]
 host = "http://127.0.0.1:11434"
@@ -106,7 +101,6 @@ allowed = [{category_values}]
         watch=watch,
         destination=destination_root,
         reports_dir=reports_dir,
-        journal_path=journal_path,
     )
 
 

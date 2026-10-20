@@ -1,0 +1,36 @@
+# Sloth Valet configuration.
+#
+# Written by `valet config init` at ~/.config/sloth-valet/valet.toml by default.
+# Relative paths are resolved against this file's directory.
+
+[general]
+dry_run = true
+settle_minutes = 30
+review_folder = "_review"
+reports_dir = "~/.local/share/sloth-valet/reports"
+
+[model]
+host = "http://localhost:11434"
+# Never invent a model name. Run `ollama list` and copy an installed model here.
+name = "set-me-after-checking-ollama-list"
+temperature = 0
+timeout_s = 60
+min_confidence = 0.7
+text_chars = 1500
+
+[[watch]]
+path = "~/Downloads"
+destination_root = "~/Sorted"
+recursive = false
+
+[protect]
+paths = ["~/.ssh", "~/.config", "~/.gnupg"]
+globs = ["*.part", "*.crdownload", "*.tmp", ".*"]
+
+[categories]
+allowed = ["academic", "career", "finance", "installers", "archives", "screenshots", "code", "media", "misc"]
+
+[fast_path]
+".deb" = "installers"
+".iso" = "installers"
+".AppImage" = "installers"
