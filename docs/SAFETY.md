@@ -161,8 +161,8 @@ These are honest boundaries, not hidden behavior:
   localhost.
 - Benchmark fixtures are synthetic. Results are useful for comparison, not a promise
   about a particular personal folder.
-- Optional peak memory is a best-effort host-wide reading of Linux `VmHWM` for
-  processes named `ollama*`, not a per-model allocator measurement.
+- Optional peak memory is a best-effort sum of Linux `VmHWM` for the Ollama server
+  and its Ollama-spawned runner processes, not a per-model allocator measurement.
 - There is no global lock against overlapping manual and timer runs. Avoid starting a
   second apply pass while one is active.
 

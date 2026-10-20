@@ -270,9 +270,9 @@ def benchmark_markdown(run: BenchmarkRun) -> str:
         [
             "",
             "The first request for each model includes Ollama model loading. "
-            "Peak RSS is a best-effort sum of Linux `VmHWM` for processes whose "
-            "name starts with `ollama`; restart Ollama before a run for a cleaner "
-            "per-model reading.",
+            "Peak RSS is a best-effort sum of Linux `VmHWM` for the Ollama server "
+            "and its Ollama-spawned `llama-server` runners; restart Ollama before "
+            "a run for a cleaner per-model reading.",
             "",
             "## Failures",
             "",
@@ -295,12 +295,12 @@ def benchmark_markdown(run: BenchmarkRun) -> str:
     return "\n".join(lines)
 
 
-def ollama_peak_memory_mb() -> float | None:
-    """Best-effort peak RSS of Ollama processes from Linux /proc VmHWM."""
+def ollama_peak_memory_mb(proc_root: Path = Path("/proc")) -> float | None:
+    """Best-effort summed VmHWM for the Ollama server and its model runners."""
     total_kib = 0.0
     found = False
     try:
-        entries = tuple(Path("/proc").iterdir())
+        entries = tuple(proc_root.iterdir())
     except OSError:
         return None
     for entry in entries:
@@ -322,10 +322,26 @@ def ollama_peak_memory_mb() -> float | None:
                         peak_kib = float(fields[0])
                     except ValueError:
                         peak_kib = None
-        if peak_kib is not None and name.casefold().startswith("ollama"):
-            total_kib += peak_kib
-            found = True
+        if peak_kib is None or not _is_ollama_process(entry, name):
+            continue
+        total_kib += peak_kib
+        found = True
     return total_kib / 1024 if found else None
+
+
+def _is_ollama_process(entry: Path, name: str) -> bool:
+    folded = name.casefold()
+    if folded.startswith("ollama"):
+        return True
+    if folded not in {"llama-server", "ollama_llama_server"}:
+        return False
+    try:
+        command_line = (entry / "cmdline").read_bytes()
+    except OSError:
+        return False
+    return "ollama" in command_line.replace(b"\0", b" ").decode(
+        "utf-8", errors="replace"
+    ).casefold()
 
 
 def _classify_fixtures(
