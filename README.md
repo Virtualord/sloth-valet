@@ -2,159 +2,323 @@
 
 A slow, private file valet for a messy downloads folder.
 
-Sloth Valet waits for files to settle, asks a small local open-weight model for a
-category and clean name, and moves them into a tidy destination tree. It runs
-offline, journals every move, and never guesses when the model is unsure.
+Sloth Valet waits until files have settled, asks a small local open-weight model
+(through Ollama) for a category and a clean filename, and moves the files into a tidy
+destination tree. It runs offline, journals every move, writes a morning report, and
+prefers leaving a file alone over guessing.
 
-**Status:** config loading, domain models, the read-only scanner, bounded content
-extraction, the Ollama client, strict classification, planning, journaled moves,
-review routing, crash reconciliation, undo, Markdown reports, systemd scheduling, and
-the local benchmark harness are implemented.
+Built for **Hacktoberfest 2026: Slow and Steady** — open-weight AI that rewards
+patience, privacy, and a recoverable filesystem.
+
+## Status
+
+Version `0.1.0`. The full pipeline is implemented: validated configuration, read-only
+scanning, bounded extraction, local classification, planning, journaled moves, review
+routing, crash reconciliation, undo, Markdown reports, optional desktop notifications,
+a systemd user timer, and a model-comparison benchmark harness.
+
+The default test suite uses mocked HTTP and fake classifiers. It does not need a
+network connection, a running Ollama, a real systemd session, or a notification
+daemon.
 
 ## Why this shape
 
-- **Offline and private:** the only network destination is a user-configured Ollama
-  instance, by default on localhost. File contents never leave the machine unless the
-  user explicitly points the model host elsewhere.
-- **Free to run:** a local open-weight model and plain Python, with no hosted API.
-- **Swappable:** any Ollama model can be selected in the config. Sloth Valet never
-  assumes a model name.
-- **Safe unattended:** dry-run is the default, protected paths and ignore globs are
-  applied before any model call, and symlinks are never followed.
+- **Offline and private:** the only network destination is the Ollama host in your
+  config, normally `http://localhost:11434`. There is no telemetry or hosted API.
+- **Free to run:** plain Python and a local open-weight model.
+- **Swappable:** the model name is never assumed. You supply it in config or with
+  `valet bench --models`.
+- **Safe unattended:** dry-run is the default; protected paths and ignore globs are
+  checked before extraction or any model call; symlinks are never followed; every
+  move is journaled and undoable.
+- **Honest about small models:** a tiny model will misclassify some files. The
+  benchmark, `_review/` folder, reports, and undo are part of the design, not an
+  afterthought.
+
+## Requirements
+
+- Linux (the scheduler targets systemd user units).
+- [uv](https://docs.astral.sh/uv/) for installation and development.
+- Python 3.12, normally managed by uv.
+- [Ollama](https://ollama.com/) running locally, plus at least one model you have
+  pulled yourself.
+- Optional: `notify-send` for desktop notifications; a systemd user session for the
+  timer.
+
+Sloth Valet does not download a model or choose one for you.
 
 ## Install
 
-Requires Linux and [uv](https://docs.astral.sh/uv/). Python 3.12 is managed by uv.
+From a clone:
 
 ```sh
 git clone <repository-url> sloth-valet
 cd sloth-valet
+./install.sh
+```
+
+`install.sh` runs `uv tool install`, so `valet` is installed in its own environment
+under `~/.local/bin`. It does not use sudo and does not install or start a system
+service. If `valet` is not on your `PATH`, the script prints the export line to add.
+
+For development instead:
+
+```sh
 uv sync
+uv run valet --version
 ```
 
-Create the config, then edit the watch roots, destination, protected paths, and model
-name:
+## Quick start
 
 ```sh
-uv run valet config init
+# Choose a model you already have. Do not copy a model name you have not pulled.
+ollama list
+
+valet config init
 $EDITOR ~/.config/sloth-valet/valet.toml
-uv run valet config show
-uv run valet scan
-uv run valet run
 ```
 
-`valet config init` writes the bundled example and refuses to overwrite an existing
-file. `valet config show` prints the fully resolved effective config as JSON.
-`valet scan` is read-only: it lists files that are old enough, under the size cap,
-not ignored, not protected, not partial downloads, and stable across two reads. It
-does not open them or call the model.
+Set at least:
 
-`valet run` classifies and plans but moves nothing unless `dry_run = false` or you
-pass `--apply`:
+- `[model].name` to an installed Ollama model name;
+- each `[[watch]].path` to the folder to tidy;
+- each `[[watch]].destination_root` to a folder outside every watch root;
+- protected paths and ignore globs appropriate for your machine.
+
+Then preview before applying:
 
 ```sh
-uv run valet run --apply
-uv run valet report --last
-uv run valet undo --last
+valet scan                 # read-only candidate list
+valet run                  # dry-run plan, no moves
+valet run --apply          # journal and move
+valet report --last        # Markdown result of the most recent run
+valet undo --last          # restore the most recent applied moves, if still valid
 ```
 
-Each run writes a Markdown report under `reports_dir`; `report --last` prints the most
-recent one. Set `notify = true` to also send a short count-only `notify-send` desktop
-notification. Each applied run writes a SQLite journal and records every move as
-pending before it happens and done afterwards. `undo --last` (or `undo --run ID`)
-restores files only when the destination still exists, its SHA-256 still matches, and
-the original path is free. Low-confidence or failed classifications go to `_review/`
-by default; set `review_on_failure = false` to leave them in place instead.
-Cross-filesystem moves copy, verify SHA-256, and only then remove the source. A
-pending row left by a crash is reconciled on the next run without deleting ambiguous
-files.
+The example config is [`valet.example.toml`](valet.example.toml). `valet config init`
+copies it without overwriting an existing file. `valet config show` prints the fully
+resolved config as JSON.
 
-For a daily unattended pass, install a systemd user timer after testing a real
-dry run:
+## What a run actually does
+
+1. **Scan** each watch root for settled regular files. Protected paths, ignore globs,
+   partial-download suffixes, symlinks, size limits, and a delayed stability check are
+   all applied before content is opened.
+2. **Extract** a bounded amount of text from supported files. Images and unknown
+   binaries contribute metadata only.
+3. **Classify** through the local Ollama host. The model must return JSON matching the
+   Pydantic schema; the category must be in the configured allowlist; the filename and
+   subfolder are sanitized. Low confidence, timeouts, invalid JSON, or an unavailable
+   model never become guesses.
+4. **Plan** a collision-free destination, or route a failure to `_review/` when
+   `review_on_failure = true`.
+5. **Apply** only when `--apply` or `dry_run = false`. The applier revalidates the
+   source fingerprint and destination immediately before moving, writes a `pending`
+   journal row, moves safely, and marks it `done`.
+6. **Report** the summary and details as escaped Markdown, then optionally send a
+   count-only desktop notification.
+
+A second applied run over the same tree is a no-op. If a crash leaves a pending
+journal row, the next run reconciles it without deleting ambiguous files.
+
+## Reports and undo
+
+Reports are written under `general.reports_dir` and their paths are stored in the
+SQLite journal at `<reports_dir parent>/journal.sqlite3`.
 
 ```sh
-uv run valet install-timer --time 03:00
-uv run valet status
-uv run valet uninstall-timer
+valet report --last
+valet report --run <run-id>
 ```
 
-The units are written to `$XDG_CONFIG_HOME/systemd/user` (default
+Set `notify = true` for a short `notify-send` message containing counts only. The
+notification is best-effort and never changes a file outcome.
+
+`valet undo --last` (or `undo --run <run-id>`) restores only `done` rows where the
+destination still exists, its SHA-256 matches the journal, both paths remain inside
+the configured roots, and the original path is free. Refusals are printed and leave
+both paths untouched.
+
+## Daily scheduling
+
+After a successful dry run, install a persistent systemd user timer:
+
+```sh
+valet install-timer --time 03:00
+valet status
+valet uninstall-timer
+```
+
+The units live in `$XDG_CONFIG_HOME/systemd/user` (default
 `~/.config/systemd/user`). The service runs
-`valet --config <config> run --apply` once at the requested time, with `Nice=10` and
-idle I/O priority. `--valet PATH` overrides the executable path used in the unit.
-`install-timer` calls `systemctl --user daemon-reload` and
-`systemctl --user enable --now sloth-valet.timer`; if that fails, the units remain
-written and the command explains how to finish. `status` is read-only and does not
-invoke `systemctl`. The timer intentionally applies moves, so run a dry-run pass
-first.
+`valet --config <absolute-config> run --apply` with low CPU and I/O priority; the
+timer is persistent, so a missed run starts after boot. `--valet PATH` overrides the
+executable embedded in the unit. `install-timer` runs `systemctl --user
+daemon-reload` and `enable --now`; if that fails, the unit files remain and the
+command prints how to finish. `valet status` is read-only and never invokes
+`systemctl`.
+
+**The timer applies moves.** Test `valet run` as a dry run first.
+
+## Benchmark
+
+The benchmark uses 50 committed fixture labels covering the default categories and a
+mix of text, PDF, DOCX, CSV, JSON, code, archive, image, installer, and media files:
+
+```sh
+uv run python scripts/make_fixtures.py
+uv run valet bench --models <model-one>,<model-two>
+```
+
+Generated fixtures are ignored; [`bench/labels.json`](bench/labels.json) is committed.
+The harness disables fast paths, extracts every fixture, and calls the same classifier
+used by `valet run`. It records:
+
+- valid-JSON rate;
+- category accuracy against the labels;
+- mean confidence;
+- mean and p95 latency;
+- failure counts;
+- optional best-effort peak Ollama RSS from Linux `/proc` with `--measure-memory`.
+
+Each run writes a timestamped JSON file and Markdown summary under `bench/results/`;
+existing results are never overwritten. The benchmark never journals, plans, moves,
+or deletes files. Model names are always CLI arguments and are never hardcoded.
+
+Real models differ substantially on this kind of task. Do not hand-edit or invent
+results. Pull at least two models, run the benchmark on the machine you actually use,
+review the files, and commit only authentic output. The repository intentionally does
+not ship made-up model names or numbers.
 
 ## Configuration
 
 The CLI reads `$SLOTH_VALET_CONFIG` when set, otherwise
-`~/.config/sloth-valet/valet.toml`. Use `--config PATH` to choose another file:
+`~/.config/sloth-valet/valet.toml`. `--config PATH` overrides both.
 
-```sh
-uv run valet --config ./valet.toml config init
+Relative paths resolve against the config file's directory; `~` expands. A
+destination root inside a watch root is rejected, and `reports_dir` may not be inside
+a watch root, so the pipeline can never scan its own journal or reports.
+
+Key safety settings:
+
+```toml
+[general]
+dry_run = true
+settle_minutes = 30
+review_folder = "_review"
+review_on_failure = true
+notify = false
+reports_dir = "~/.local/share/sloth-valet/reports"
+
+[model]
+host = "http://localhost:11434"
+name = "set-me-after-checking-ollama-list"
+temperature = 0
+timeout_s = 60
+min_confidence = 0.7
+text_chars = 1500
 ```
 
-Relative paths in a config are resolved against that config file's directory.
-`~` is expanded. A destination root inside any watch root is rejected at load time.
-Symlinked watch roots and filesystem symlinks are refused by the scanner.
+`fast_path` maps obvious extensions such as `.deb` or `.iso` to allowed categories
+without a model call. Configured fast-path categories are validated against the
+allowlist. The model name has no default; read it from `ollama list`.
 
-A scan applies protected paths, ignore globs, symlink refusal, `settle_minutes`,
-the `max_file_size_mb` cap (default `100`), and a two-read stability check. The
-default scan waits two seconds between those reads for the whole candidate batch.
+## How it works
 
-The journal lives at `<reports_dir parent>/journal.sqlite3`, and each run writes a
-timestamped Markdown report into `reports_dir`. `reports_dir` may not be inside a watch
-root, so the pipeline can never scan or move its own state. The review folder defaults
-to `_review` under each destination root. `notify = true` enables best-effort
-`notify-send` messages; the counts are fixed text and are never passed through a
-shell.
-
-The model name has no default. Read an installed name from `ollama list` and put it
-in the config; Sloth Valet never invents one.
-
-## Benchmark
-
-The repository ships labels for 50 deterministic fixtures across the default
-categories. Generate the ignored fixture files, then compare any models already
-pulled into the configured Ollama host:
-
-```sh
-uv run python scripts/make_fixtures.py
-uv run valet bench --models model-a,model-b
+```mermaid
+flowchart LR
+    W[Watch roots] --> S[Scanner<br/>safety gates + settle]
+    S --> X[Extractor<br/>bounded text]
+    X --> C[Classifier<br/>strict JSON]
+    O[(Local Ollama)] <--> C
+    C --> P[Planner<br/>allowlist + collisions]
+    P --> D{Dry run?}
+    D -->|yes| R[Report writer]
+    D -->|no| J[Journal pending]
+    J --> M[Revalidating safe move]
+    M --> K[Journal done]
+    K --> R
+    R --> MD[Markdown report]
+    J -. crash .-> RC[Reconcile next run]
+    RC --> R
 ```
 
-Model names are always CLI arguments; no model is hardcoded. The harness disables
-fast paths, extracts each fixture, calls the same classifier used by `valet run`, and
-records JSON validity, category accuracy against `bench/labels.json`, confidence,
-latency, failures, and an optional best-effort peak Ollama RSS with
-`--measure-memory`. It never plans, moves, journals, or deletes a file. Each run
-writes a new timestamped JSON file and Markdown summary under `bench/results/`;
-existing results are not overwritten. Review generated files before committing them.
-This project does not ship invented benchmark numbers or model names.
+The authoritative stage and trust-boundary description is in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The detailed invariants are in
+[`docs/SAFETY.md`](docs/SAFETY.md).
 
-Classification is strict: the model must return the Pydantic schema, the category
-must come from the allowlist, the filename is slugified and keeps the original
-extension, and low confidence is a failure rather than a guess. Configured
-`fast_path` extensions skip the model entirely. Extracted text is fenced as untrusted
-data in the prompt, but prompt injection is not magic: a small model can still pick a
-wrong allowed category, which is why review routing and undo are part of the safety
-model.
+## Limits and failure behavior
+
+- A small model can choose a wrong **allowlisted** category, even with prompt-injection
+  defenses. Content fencing reduces instruction attacks; it does not make the model
+  correct. Benchmark before trusting a model and keep `_review/` enabled.
+- Confidence is the model's own number, not a calibrated probability.
+- Settlement is based on mtime, size, device, and inode; a program that writes slowly
+  without changing those can still fool it.
+- Hash checks protect move integrity. They do not protect against a privileged local
+  attacker who can modify both the file and the journal.
+- Reports and the journal are local files and are not encrypted.
+- The benchmark uses synthetic fixtures. It measures behavior on a reproducible sample,
+  not your entire real folder.
+- The optional memory figure is host-wide `VmHWM` for processes named `ollama*`, not a
+  per-model allocator measurement.
+
+Every classifier failure is explicit. If the model is unavailable, slow, malformed, or
+uncertain, the file stays put or goes to review.
+
+## Privacy
+
+There are no analytics, no telemetry, and no calls to a hosted model. The only HTTP
+module is [`ollama.py`](src/sloth_valet/ollama.py), and an architectural test enforces
+that boundary. If you change `[model].host` to a remote URL, file text is sent there;
+keep it on localhost for a fully local setup.
 
 ## Development
 
 ```sh
+uv sync
 uv run ruff check .
 uv run mypy src tests
 uv run pytest -q
 ```
 
-The default test suite uses `httpx.MockTransport` and never needs network access or
-Ollama. One live smoke test is skipped unless both variables are set:
+The live Ollama test is opt-in and never hardcodes a model:
 
 ```sh
 SLOTH_VALET_LIVE=1 SLOTH_VALET_TEST_MODEL="$(ollama list | awk 'NR==2 {print $1}')" \
   uv run pytest -q tests/test_classifier.py -m live
 ```
+
+Run `uv run python scripts/make_fixtures.py` before a benchmark. The release checks
+are also run by [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+## Project layout
+
+```text
+src/sloth_valet/   config, scanner, extraction, classifier, planner, journal,
+                   applier, runner, report, systemd, fixtures, benchmark, CLI
+tests/             unit, safety, end-to-end, CLI, benchmark, and boundary tests
+bench/             committed labels and results; generated fixtures are ignored
+docs/              architecture and safety notes
+scripts/           deterministic fixture generator
+```
+
+## Uninstall
+
+```sh
+valet uninstall-timer
+uv tool uninstall sloth-valet
+```
+
+That removes only the installed tool and the two Sloth Valet systemd units. It does
+not delete your sorted files, watch folders, reports, journal, or configuration; remove
+those yourself only after reviewing them.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Please preserve the safety invariants and
+never invent model names or benchmark results.
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md).

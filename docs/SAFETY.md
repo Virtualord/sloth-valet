@@ -144,6 +144,28 @@ invariants that are implemented and tested at each phase.
   fixture path as an error. Benchmark results use exclusive creation, and the
   repository does not ship invented model names or fabricated metrics.
 
+## Known limits
+
+These are honest boundaries, not hidden behavior:
+
+- A small model can choose a wrong category from the allowlist. Content fencing
+  reduces prompt-injection success but does not make classification correct.
+  Benchmarking, review routing, reports, and undo are the containment path.
+- Confidence is supplied by the model and is not a calibrated probability.
+- Settlement is heuristic. A writer that leaves size, mtime, device, and inode
+  unchanged can defeat it.
+- SHA-256 checks detect move corruption and changed destinations. They do not protect
+  against a privileged local attacker who can modify both files and the journal.
+- Journals, reports, and config are unencrypted local files.
+- A remote `[model].host` sends extracted text off the machine. The default host is
+  localhost.
+- Benchmark fixtures are synthetic. Results are useful for comparison, not a promise
+  about a particular personal folder.
+- Optional peak memory is a best-effort host-wide reading of Linux `VmHWM` for
+  processes named `ollama*`, not a per-model allocator measurement.
+- There is no global lock against overlapping manual and timer runs. Avoid starting a
+  second apply pass while one is active.
+
 ## Reporting a safety issue
 
 Always read a dry-run plan against a copy of real data before the first `--apply`.
