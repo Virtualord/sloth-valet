@@ -42,6 +42,8 @@ def test_load_config_resolves_absolute_paths_and_fast_path(tmp_path: Path) -> No
 
     assert config.general.dry_run is True
     assert config.general.max_file_size_mb == 100
+    assert config.general.review_on_failure is True
+    assert config.journal_path == paths.reports_dir.parent / "journal.sqlite3"
     assert config.watch[0].path == paths.watch
     assert config.watch[0].destination_root == paths.destination
     assert config.watch[0].recursive is True
@@ -251,6 +253,21 @@ def test_destination_root_inside_watch_is_rejected(
     paths = write_config(tmp_path, watch_path=watch, destination=destination)
 
     with pytest.raises(ConfigError, match="inside watch root"):
+        paths.load()
+
+
+def test_reports_directory_inside_watch_is_rejected(tmp_path: Path) -> None:
+    paths = write_config(tmp_path)
+    text = paths.config_path.read_text(encoding="utf-8")
+    paths.config_path.write_text(
+        text.replace(
+            f'reports_dir = "{paths.reports_dir}"',
+            f'reports_dir = "{paths.watch / "reports"}"',
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="reports_dir"):
         paths.load()
 
 

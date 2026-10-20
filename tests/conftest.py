@@ -44,9 +44,12 @@ def write_config(
     recursive: bool = False,
     settle_minutes: int = 30,
     max_file_size_mb: int = 100,
+    dry_run: bool = True,
     model_name: str = "fixture-model",
     model_host: str = "http://127.0.0.1:11434",
     model_temperature: float = 0,
+    review_on_failure: bool = True,
+    review_folder: str = "_review",
     globs: tuple[str, ...] = ("*.part", "*.crdownload", "*.tmp", ".*"),
     protect_paths: tuple[Path, ...] = (),
     categories: tuple[str, ...] = DEFAULT_CATEGORIES,
@@ -71,10 +74,11 @@ def write_config(
     config_path.write_text(
         f"""
 [general]
-dry_run = true
+dry_run = {str(dry_run).lower()}
 settle_minutes = {settle_minutes}
 max_file_size_mb = {max_file_size_mb}
-review_folder = "_review"
+review_folder = {_toml_string(review_folder)}
+review_on_failure = {str(review_on_failure).lower()}
 reports_dir = {_toml_string(reports_dir)}
 
 [model]

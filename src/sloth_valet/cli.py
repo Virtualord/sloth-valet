@@ -11,6 +11,13 @@ from typing import Annotated
 import typer
 
 from sloth_valet import __version__
+from sloth_valet.applier import (
+    Applier,
+    ApplyStatus,
+    MoveOutcome,
+    UndoOutcome,
+    UndoStatus,
+)
 from sloth_valet.config import (
     ConfigError,
     ValetConfig,
@@ -18,6 +25,8 @@ from sloth_valet.config import (
     example_config_text,
     load_config,
 )
+from sloth_valet.journal import Journal
+from sloth_valet.runner import RunResult, execute_run
 from sloth_valet.scanner import Scanner
 
 app = typer.Typer(
@@ -189,6 +198,134 @@ def scan(
 
     if result.errors:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def run(
+    ctx: typer.Context,
+    apply: Annotated[
+        bool,
+        typer.Option(
+            "--apply",
+            help="Actually move files. Without this, the config's dry_run setting decides.",
+        ),
+    ] = False,
+) -> None:
+    """Classify candidates, show the plan, and optionally apply it."""
+    state = _state_or_exit(ctx)
+    config = _load_or_exit(state)
+    effective_apply = apply or not config.general.dry_run
+    result = execute_run(config, apply=effective_apply)
+    _print_run_result(result)
+    if result.scan.errors or result.failed:
+        raise typer.Exit(code=1)
+
+
+def _print_run_result(result: RunResult) -> None:
+    if result.mode.value == "dry-run":
+        typer.echo("Dry run: no files were moved and no move rows were journaled.")
+    else:
+        typer.echo("Apply run: every completed move was journaled.")
+
+    for outcome in result.outcomes:
+        _print_move_outcome(outcome)
+    for skipped in result.skipped:
+        detail = f" ({skipped.detail})" if skipped.detail else ""
+        typer.echo(
+            f"  left untouched: {skipped.candidate.source} [{skipped.reason}]{detail}"
+        )
+    for repair in result.pending_repairs:
+        typer.echo(
+            f"  recovered pending row {repair.move_id}: {repair.status.value} - "
+            f"{repair.detail}"
+        )
+
+    typer.echo(
+        f"Run {result.run_id}: moved={len(result.moved)}, "
+        f"review={len(result.reviewed)}, failed={len(result.failed)}, "
+        f"skipped={len(result.scan.skipped) + len(result.skipped)}"
+    )
+    if result.scan.errors:
+        typer.echo(f"Scan errors: {len(result.scan.errors)}", err=True)
+        for error in result.scan.errors:
+            typer.echo(f"  {error.path}: {error.message}", err=True)
+
+
+def _print_move_outcome(outcome: MoveOutcome) -> None:
+    move = outcome.move
+    if outcome.status is ApplyStatus.MOVED:
+        label = "moved"
+    elif outcome.status is ApplyStatus.REVIEWED:
+        label = "review"
+    elif outcome.status is ApplyStatus.PLANNED:
+        label = "would review" if move.is_review else "would move"
+    else:
+        label = "failed"
+    line = f"  {label}: {move.source} -> {move.destination}"
+    if outcome.error:
+        line += f" ({outcome.error})"
+    elif move.is_review and move.review_reason:
+        line += f" ({move.review_reason})"
+    typer.echo(line)
+
+
+@app.command()
+def undo(
+    ctx: typer.Context,
+    last: Annotated[
+        bool,
+        typer.Option("--last", help="Undo the most recent run that has completed moves."),
+    ] = False,
+    run_id: Annotated[
+        str | None,
+        typer.Option("--run", help="Undo a specific run id."),
+    ] = None,
+) -> None:
+    """Restore journaled moves only when hashes and original paths still match."""
+    if last == (run_id is not None):
+        typer.echo("Choose exactly one of --last or --run ID.", err=True)
+        raise typer.Exit(code=2)
+    state = _state_or_exit(ctx)
+    config = _load_or_exit(state)
+    journal = Journal(config.journal_path)
+    try:
+        if last:
+            record = journal.last_run(with_done_moves=True)
+            if record is None:
+                typer.echo("No completed run with restored candidates was found.", err=True)
+                raise typer.Exit(code=1)
+            target_run_id = record.id
+        else:
+            if run_id is None:
+                typer.echo("A run id is required.", err=True)
+                raise typer.Exit(code=2)
+            target_run_id = run_id
+            record = journal.get_run(target_run_id)
+            if record is None:
+                typer.echo(f"Run {target_run_id!r} was not found.", err=True)
+                raise typer.Exit(code=1)
+        outcomes = Applier(config, journal).undo_run(target_run_id)
+    finally:
+        journal.close()
+
+    _print_undo_outcomes(outcomes)
+
+
+def _print_undo_outcomes(outcomes: tuple[UndoOutcome, ...]) -> None:
+    if not outcomes:
+        typer.echo("No completed moves were found for that run.")
+        return
+    restored = 0
+    for outcome in outcomes:
+        if outcome.status is UndoStatus.RESTORED:
+            restored += 1
+            typer.echo(f"  restored: {outcome.move.destination} -> {outcome.move.source}")
+        else:
+            typer.echo(
+                f"  skipped: {outcome.move.destination} -> {outcome.move.source}"
+                f" ({outcome.reason or 'safety check failed'})"
+            )
+    typer.echo(f"Undo: restored={restored}, skipped={len(outcomes) - restored}")
 
 
 def main_entrypoint() -> None:

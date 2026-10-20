@@ -158,15 +158,24 @@ class ClassificationResult:
 
 @dataclass(frozen=True, slots=True)
 class PlannedMove:
-    """A validated candidate paired with its intended destination."""
+    """A validated candidate paired with its intended destination.
+
+    A review move has no classification and carries the failure reason instead.
+    """
 
     candidate: FileCandidate
-    classification: Classification
+    classification: Classification | None
     destination: Path
+    review_reason: str | None = None
+    review_detail: str | None = None
 
     @property
     def source(self) -> Path:
         return self.candidate.source
+
+    @property
+    def is_review(self) -> bool:
+        return self.classification is None
 
 
 class MoveStatus(StrEnum):
@@ -186,6 +195,11 @@ class MoveRecord:
     created_at: datetime
     completed_at: datetime | None = None
     id: int | None = None
+    run_id: str | None = None
+    sha256: str | None = None
+    size: int | None = None
+    error: str | None = None
+    is_review: bool = False
 
 
 class ClassificationError(ValueError):

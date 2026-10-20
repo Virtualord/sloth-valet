@@ -73,6 +73,7 @@ class GeneralConfig(_ConfigModel):
     settle_minutes: int = Field(default=30, ge=0)
     max_file_size_mb: int = Field(default=100, ge=1)
     review_folder: str = "_review"
+    review_on_failure: bool = True
     reports_dir: Path = Path("~/.local/share/sloth-valet/reports")
 
     @field_validator("reports_dir", mode="before")
@@ -191,6 +192,11 @@ class ValetConfig(_ConfigModel):
     categories: CategoriesConfig
     fast_path: dict[str, str] = Field(default_factory=dict)
 
+    @property
+    def journal_path(self) -> Path:
+        """Keep the journal beside the reports directory, not inside a watched root."""
+        return self.general.reports_dir.parent / "journal.sqlite3"
+
     @field_validator("fast_path", mode="before")
     @classmethod
     def normalize_fast_path(cls, value: Any) -> dict[str, str]:
@@ -240,6 +246,12 @@ class ValetConfig(_ConfigModel):
                         f"destination root {destination_owner.destination_root} is inside "
                         f"watch root {watch.path}"
                     )
+            reports_dir = _resolve_for_nesting(self.general.reports_dir)
+            if reports_dir == watch_root or reports_dir.is_relative_to(watch_root):
+                raise ValueError(
+                    f"reports_dir {self.general.reports_dir} is inside "
+                    f"watch root {watch.path}"
+                )
 
         return self
 

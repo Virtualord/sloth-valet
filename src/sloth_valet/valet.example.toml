@@ -8,6 +8,7 @@ dry_run = true
 settle_minutes = 30
 max_file_size_mb = 100
 review_folder = "_review"
+review_on_failure = true
 reports_dir = "~/.local/share/sloth-valet/reports"
 
 [model]
