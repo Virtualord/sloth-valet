@@ -20,6 +20,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src tests
       - run: uv run pytest -q
+      - run: bash -n install.sh scripts/demo.sh
       - name: Generate benchmark fixtures
         run: uv run python scripts/make_fixtures.py --output "$RUNNER_TEMP/sloth-valet-fixtures"
       - name: Smoke-test the installer

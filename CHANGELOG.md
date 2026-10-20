@@ -26,6 +26,11 @@ All notable changes to Sloth Valet are documented here. The format follows
   command.
 - Deterministic 50-fixture benchmark set, `valet bench --models`, JSON/Markdown
   result files, and optional best-effort peak Ollama RSS measurement.
+- Committed authentic CPU-only benchmark run comparing `qwen2.5:0.5b` and
+  `llama3.2:1b`, with 50/50 valid JSON for both and category accuracy of 12.0% and
+  80.0% respectively.
+- Safe, repeatable end-to-end demo script and a terminal recording of the verified
+  `llama3.2:1b` run.
 - Release installer using `uv tool install`, CI checks, architecture and safety
   documentation, and contribution guidance.
 
@@ -43,5 +48,6 @@ All notable changes to Sloth Valet are documented here. The format follows
 - Model names are never bundled. Users select their own Ollama model.
 - Small local models can still choose a wrong allowlisted category. Use the benchmark,
   review folder, reports, and undo as the practical containment boundary.
-- Benchmark results are intentionally not fabricated. Run `valet bench` locally with
-  the models you have pulled and review the output before committing it.
+- Benchmark results are not fabricated. The committed run came from real models on
+  the machine described in `bench/results/README.md`; rerun locally and review new
+  output before committing it.

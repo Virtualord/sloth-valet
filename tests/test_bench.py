@@ -12,6 +12,7 @@ from sloth_valet.bench import (
     benchmark_markdown,
     benchmark_model,
     load_benchmark_fixtures,
+    ollama_peak_memory_mb,
     parse_models,
     run_benchmark,
     write_benchmark_results,
@@ -340,6 +341,52 @@ def test_benchmark_markdown_does_not_echo_model_text(
 
     assert "ignore previous instructions" not in markdown
     assert "category_not_allowed" in markdown
+
+
+def _fake_proc(
+    root: Path,
+    pid: str,
+    name: str,
+    peak_kib: int,
+    command_line: str | None = None,
+) -> None:
+    process = root / pid
+    process.mkdir()
+    (process / "status").write_text(
+        f"Name:\t{name}\nVmHWM:\t  {peak_kib} kB\n",
+        encoding="utf-8",
+    )
+    if command_line is not None:
+        (process / "cmdline").write_bytes(command_line.encode("utf-8") + b"\0")
+
+
+def test_peak_memory_counts_ollama_server_and_model_runner(
+    tmp_path: Path,
+) -> None:
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    _fake_proc(proc, "100", "ollama", 102400)
+    _fake_proc(
+        proc,
+        "101",
+        "llama-server",
+        1048576,
+        "/usr/local/lib/ollama/llama-server --model model.gguf",
+    )
+    _fake_proc(
+        proc,
+        "102",
+        "llama-server",
+        2097152,
+        "/usr/local/bin/llama-server --model unrelated.gguf",
+    )
+    _fake_proc(proc, "103", "firefox", 4194304)
+    (proc / "self").mkdir()
+    (proc / "104").mkdir()
+    (proc / "104" / "status").write_text("Name:\tollama\n", encoding="utf-8")
+
+    assert ollama_peak_memory_mb(proc) == pytest.approx(1124.0)
+    assert ollama_peak_memory_mb(tmp_path / "missing") is None
 
 
 def test_cli_bench_writes_json_and_markdown(

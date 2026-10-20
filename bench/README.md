@@ -22,7 +22,7 @@ uv run valet bench --models model-a,model-b
 
 Model names are always supplied on the command line; the repository never names
 or assumes a particular model. Add `--measure-memory` for a best-effort Linux
-`VmHWM` reading from Ollama processes. Results are written to `bench/results/`
+`VmHWM` reading from the Ollama server and its model-runner processes. Results are written to `bench/results/`
 as a timestamped JSON file and a Markdown summary. Generated results are not
 fabricated or committed automatically; run the benchmark locally and review the
 files before adding authentic results to git.
