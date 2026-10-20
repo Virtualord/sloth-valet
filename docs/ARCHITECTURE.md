@@ -6,9 +6,11 @@ each stage returns data for the next, and every stage is independently testable.
 ```text
 scan -> extract -> classify -> plan -> apply -> report
          ^ model call only here
+
+bench -> load labels -> extract -> classify -> metrics -> JSON + Markdown
 ```
 
-## Current stages: scan, extract, classify, plan, apply, report, undo, schedule
+## Current stages: scan, extract, classify, plan, apply, report, undo, schedule, benchmark
 
 `scanner.Scanner` walks each configured watch root and produces:
 
@@ -103,6 +105,18 @@ calls `systemctl --user daemon-reload` and `enable --now`. The service and timer
 are fixed; `uninstall-timer` removes only those two files. `status` reads the unit
 files and journal directly and never invokes `systemctl`.
 
+`fixtures.py` reads the committed `bench/labels.json`, validates every filename and
+category, and generates deterministic local files with a fixed seed. The generator
+refuses to replace existing files unless explicitly asked, never deletes unrelated
+files, and covers text, PDF, DOCX, CSV, JSON, code, archives, images, installers, and
+media. `bench.py` resolves only labeled regular files inside the fixture directory,
+requires their categories to be in the configured allowlist, and disables fast paths
+so every model actually classifies every fixture. It records JSON validity, category
+accuracy against the labels, confidence, latency, failures, and optional `/proc`
+`VmHWM` memory for Ollama processes. Results are written as a timestamped, exclusive
+JSON/Markdown pair under `bench/results/`; the benchmark never journals, plans, moves,
+or deletes files.
+
 `report.write_report` writes a timestamped, never-overwritten Markdown file into
 `reports_dir`: a title, a three-line summary, and a detail table of moves, review
 routing, skipped paths, scan errors, and journal repairs. Paths and error text are
@@ -140,13 +154,11 @@ move.
   notifications.
 - `systemd.py` - user-unit rendering, atomic unit installation, exact uninstall, and
   best-effort `systemctl` calls.
-- `cli.py` - Typer composition root for `scan`, `run`, `report`, `undo`,
+- `fixtures.py` - strict label loading and deterministic fixture generation.
+- `bench.py` - model comparison, metrics, optional memory probing, and result writers.
+- `cli.py` - Typer composition root for `scan`, `run`, `report`, `undo`, `bench`,
   `install-timer`, `uninstall-timer`, `status`, and config commands.
 
-## Planned stages
-
-- **benchmark** - fixture generation, model comparison metrics, and committed result
-  artifacts.
-
 The journal, report, and undo path are part of the trust boundary: a crash between
-any two stages must leave the filesystem and journal in a recoverable state.
+any two stages must leave the filesystem and journal in a recoverable state. The
+benchmark is deliberately outside that boundary because it only reads fixtures.

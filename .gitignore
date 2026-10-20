@@ -9,5 +9,9 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+bench/fixtures/
 bench/results/*
 !bench/results/.gitkeep
+!bench/results/README.md
+!bench/results/*.json
+!bench/results/*.md

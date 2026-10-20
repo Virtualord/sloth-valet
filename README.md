@@ -8,8 +8,8 @@ offline, journals every move, and never guesses when the model is unsure.
 
 **Status:** config loading, domain models, the read-only scanner, bounded content
 extraction, the Ollama client, strict classification, planning, journaled moves,
-review routing, crash reconciliation, undo, Markdown reports, and systemd scheduling
-are implemented. The benchmark harness is landing in the next phase.
+review routing, crash reconciliation, undo, Markdown reports, systemd scheduling, and
+the local benchmark harness are implemented.
 
 ## Why this shape
 
@@ -114,6 +114,26 @@ shell.
 
 The model name has no default. Read an installed name from `ollama list` and put it
 in the config; Sloth Valet never invents one.
+
+## Benchmark
+
+The repository ships labels for 50 deterministic fixtures across the default
+categories. Generate the ignored fixture files, then compare any models already
+pulled into the configured Ollama host:
+
+```sh
+uv run python scripts/make_fixtures.py
+uv run valet bench --models model-a,model-b
+```
+
+Model names are always CLI arguments; no model is hardcoded. The harness disables
+fast paths, extracts each fixture, calls the same classifier used by `valet run`, and
+records JSON validity, category accuracy against `bench/labels.json`, confidence,
+latency, failures, and an optional best-effort peak Ollama RSS with
+`--measure-memory`. It never plans, moves, journals, or deletes a file. Each run
+writes a new timestamped JSON file and Markdown summary under `bench/results/`;
+existing results are not overwritten. Review generated files before committing them.
+This project does not ship invented benchmark numbers or model names.
 
 Classification is strict: the model must return the Pydantic schema, the category
 must come from the allowlist, the filename is slugified and keeps the original
