@@ -147,12 +147,18 @@ def extract_file(
 
 
 def _metadata(path: Path, size: int) -> FileMetadata:
-    mime_type, _ = mimetypes.guess_type(path.name)
+    # DOCX registration varies by Python version and host MIME database.
+    # Keep metadata stable when the system only knows this extension as binary.
+    if path.suffix.casefold() == ".docx":
+        mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        guessed_mime_type, _ = mimetypes.guess_type(path.name)
+        mime_type = guessed_mime_type or "application/octet-stream"
     return FileMetadata(
         name=path.name,
         extension=path.suffix.casefold(),
         size=size,
-        mime_type=mime_type or "application/octet-stream",
+        mime_type=mime_type,
     )
 
 

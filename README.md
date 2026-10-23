@@ -353,3 +353,7 @@ never invent model names or benchmark results.
 ## Changelog
 
 See [`CHANGELOG.md`](CHANGELOG.md).
+
+## License
+
+Sloth Valet is released under the [MIT License](LICENSE).
