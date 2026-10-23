@@ -4,6 +4,17 @@ All notable changes to Sloth Valet are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Report the standard DOCX MIME type consistently across Python versions and host
+  MIME databases.
+
+### Added
+
+- Add the MIT license and declare it in package metadata.
+
 ## [0.1.0] - 2026-10-21
 
 ### Added
